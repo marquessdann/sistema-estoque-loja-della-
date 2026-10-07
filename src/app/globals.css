@@ -1,0 +1,73 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Visual escuro da DELLA */
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  background: #0a0a0a;
+  color: #ffffff;
+}
+
+@layer components {
+  .campo {
+    @apply w-full rounded-lg border border-borda bg-painel2 px-3 py-2.5 text-base text-white placeholder:text-neutral-500
+      outline-none transition focus:border-dourado focus:ring-2 focus:ring-dourado/30 disabled:opacity-60;
+  }
+  .rotulo {
+    @apply mb-1 block text-sm font-medium text-neutral-300;
+  }
+  .btn {
+    @apply inline-flex min-h-[44px] items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold
+      transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-principal {
+    @apply btn bg-dourado text-preto hover:bg-dourado-claro;
+  }
+  .btn-secundario {
+    @apply btn border border-borda bg-painel2 text-white hover:border-dourado/60;
+  }
+  .btn-azul {
+    @apply btn bg-marinho text-white hover:bg-azul;
+  }
+  .btn-perigo {
+    @apply btn bg-rose-600 text-white hover:bg-rose-500;
+  }
+  .btn-fantasma {
+    @apply btn min-h-0 px-2 py-1 text-neutral-300 hover:bg-white/5 hover:text-white;
+  }
+  .cartao {
+    @apply rounded-xl border border-borda bg-painel p-4 sm:p-5;
+  }
+  .tabela {
+    @apply w-full text-left text-sm;
+  }
+  .tabela th {
+    @apply whitespace-nowrap border-b border-borda px-3 py-2 text-xs font-semibold uppercase tracking-wide text-suave;
+  }
+  .tabela td {
+    @apply border-b border-borda/60 px-3 py-2.5 align-middle;
+  }
+  .tabela tbody tr:hover {
+    @apply bg-white/[0.03];
+  }
+}
+
+/* números das tabelas alinhados */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* esconde setas dos campos numéricos */
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type='number'] {
+  -moz-appearance: textfield;
+}

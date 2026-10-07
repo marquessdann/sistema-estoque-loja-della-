@@ -1,0 +1,76 @@
+# Backup automático diário do banco de dados (Supabase) — gratuito.
+#
+# Todo dia, às 03:17 (horário de Brasília), o GitHub faz uma cópia do banco,
+# protege com senha (criptografia) e guarda por 90 dias na aba "Actions".
+#
+# Configuração (uma vez só), no GitHub: Settings > Secrets and variables > Actions
+#   SUPABASE_DB_URL  = endereço de conexão "Session pooler" do Supabase (com a senha do banco)
+#   BACKUP_SENHA     = uma senha forte que você inventa (guarde-a! sem ela o backup não abre)
+#
+# Também pode ser rodado na hora: aba Actions > "Backup diário do banco" > Run workflow.
+
+name: Backup diário do banco
+
+on:
+  schedule:
+    - cron: '17 6 * * *' # 06:17 UTC = 03:17 em Brasília
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Verificar configuração
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          BACKUP_SENHA: ${{ secrets.BACKUP_SENHA }}
+        run: |
+          if [ -z "$SUPABASE_DB_URL" ] || [ -z "$BACKUP_SENHA" ]; then
+            echo "::error::Cadastre os segredos SUPABASE_DB_URL e BACKUP_SENHA (veja docs/HOSPEDAGEM.md)."
+            exit 1
+          fi
+
+      - name: Instalar ferramentas do PostgreSQL 17
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-17
+
+      - name: Copiar o banco (dump)
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          DATA=$(TZ=America/Sao_Paulo date +%Y-%m-%d_%H%M)
+          echo "DATA=$DATA" >> "$GITHUB_ENV"
+          mkdir backup
+          # estrutura + dados das tabelas do sistema
+          /usr/lib/postgresql/17/bin/pg_dump "$SUPABASE_DB_URL" --schema=public --no-owner --no-privileges \
+            --format=custom --file="backup/della_public_$DATA.dump"
+          # versão em texto (abre em qualquer editor), compactada
+          /usr/lib/postgresql/17/bin/pg_dump "$SUPABASE_DB_URL" --schema=public --no-owner --no-privileges \
+            | gzip > "backup/della_public_$DATA.sql.gz"
+          # lista de logins (só os dados)
+          /usr/lib/postgresql/17/bin/pg_dump "$SUPABASE_DB_URL" --data-only --table=auth.users --table=auth.identities \
+            | gzip > "backup/della_logins_$DATA.sql.gz"
+          ls -lh backup
+
+      - name: Proteger com senha
+        env:
+          BACKUP_SENHA: ${{ secrets.BACKUP_SENHA }}
+        run: |
+          tar -czf - backup | gpg --batch --yes --pinentry-mode loopback --passphrase "$BACKUP_SENHA" \
+            --symmetric --cipher-algo AES256 -o "della-backup-$DATA.tar.gz.gpg"
+          ls -lh della-backup-*.gpg
+
+      - name: Guardar o backup (90 dias)
+        uses: actions/upload-artifact@v4
+        with:
+          name: della-backup-${{ env.DATA }}
+          path: della-backup-*.tar.gz.gpg
+          retention-days: 90
