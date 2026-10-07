@@ -1,6 +1,7 @@
 'use client';
 
 import Image from 'next/image';
+import { Rodape } from '@/components/rodape';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { Campo } from '@/components/ui';
@@ -42,7 +43,7 @@ export default function RedefinirSenha() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center p-4">
+    <main className="flex min-h-screen flex-col items-center justify-center p-4">
       <div className="w-full max-w-sm">
         <div className="mb-6 flex justify-center">
           <Image src="/logo.png" alt="DELLA" width={160} height={145} priority />
@@ -71,6 +72,7 @@ export default function RedefinirSenha() {
           )}
         </div>
       </div>
+      <Rodape />
     </main>
   );
 }

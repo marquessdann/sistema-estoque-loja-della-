@@ -28,6 +28,7 @@ import { mensagemErro } from '@/lib/erros';
 import { supabaseNavegador } from '@/lib/supabase/client';
 import type { Permissao } from '@/lib/tipos';
 import { EscolherEstoque } from './escolher-estoque';
+import { Rodape } from './rodape';
 import { LojaTag } from './loja';
 import { CARGOS, corTexto } from '@/lib/formato';
 import { Carregando, Campo, Modal } from './ui';
@@ -191,6 +192,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
           {children}
         </div>
+        <Rodape className="mt-6" />
       </main>
       {trocarEstoque && <EscolherEstoque aoCancelar={() => setTrocarEstoque(false)} />}
 

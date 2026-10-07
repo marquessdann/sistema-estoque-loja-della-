@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowLeftRight, TriangleAlert } from 'lucide-react';
+import { ArrowLeftRight, CircleCheck, TriangleAlert } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { LojaTag } from '@/components/loja';
@@ -10,6 +10,8 @@ import { useDados } from '@/lib/dados';
 import { abaixoDoMinimo, estoqueNaLoja, moeda, numero, sugestaoTransferencia } from '@/lib/formato';
 import { supabaseNavegador } from '@/lib/supabase/client';
 import type { OperacaoResumo } from '@/lib/tipos';
+
+const NIVEIS = { baixo: 'Estoque baixo', medio: 'Estoque médio', ok: 'Estoque OK', vazio: 'Estoque vazio' } as const;
 
 export default function Painel() {
   const { produtos, lojas, versao, usuario, pode, lojaAtual } = useDados();
@@ -36,13 +38,22 @@ export default function Painel() {
     let unidades = 0;
     let valor = 0;
     const baixos = [];
+    const medios = []; // acima do mínimo, mas até o dobro dele: perto de acabar
     for (const p of ativos) {
       const e = estoqueNaLoja(p, l.id);
       unidades += e.saldo;
       valor += e.saldo * p.custo_medio;
       if (abaixoDoMinimo(p, l.id)) baixos.push(p);
+      else if (e.estoque_minimo > 0 && e.saldo < e.estoque_minimo * 2) medios.push(p);
     }
-    return { loja: l, unidades, valor, baixos };
+    const nivel: 'baixo' | 'medio' | 'ok' | 'vazio' = baixos.length
+      ? 'baixo'
+      : medios.length
+        ? 'medio'
+        : unidades === 0
+          ? 'vazio'
+          : 'ok';
+    return { loja: l, unidades, valor, baixos, medios, nivel };
   });
   const valorTotal = resumo.reduce((s, r) => s + r.valor, 0);
   const primeiroNome = usuario?.nome.split(' ')[0];
@@ -74,18 +85,32 @@ export default function Painel() {
         </div>
       </div>
 
-      {/* Alertas de estoque baixo */}
+      {/* Situação do estoque: baixo / médio / OK */}
       <div className="grid gap-4 lg:grid-cols-2">
         {resumo.map((r) => (
-          <div key={r.loja.id} className="cartao">
-            <div className="mb-3 flex items-center gap-2">
-              <TriangleAlert className={`h-5 w-5 ${r.baixos.length ? 'text-rose-400' : 'text-emerald-400'}`} />
-              <h2 className="font-titulo font-bold">Estoque baixo</h2>
+          <div key={r.loja.id} className="cartao" data-nivel={r.nivel}>
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              {r.nivel === 'ok' ? (
+                <CircleCheck className="h-5 w-5 text-emerald-400" />
+              ) : (
+                <TriangleAlert
+                  className={`h-5 w-5 ${r.nivel === 'baixo' ? 'text-rose-400' : r.nivel === 'medio' ? 'text-amber-300' : 'text-suave'}`}
+                />
+              )}
+              <h2 className="font-titulo font-bold">{NIVEIS[r.nivel]}</h2>
               <LojaTag loja={r.loja} tamanho="sm" />
             </div>
-            {r.baixos.length === 0 ? (
-              <p className="text-sm text-suave">Tudo certo: nenhum produto abaixo do mínimo.</p>
-            ) : (
+            {r.nivel === 'ok' && <p className="text-sm text-emerald-300">Seu estoque está OK: todos os produtos estão acima do mínimo.</p>}
+            {r.nivel === 'vazio' && <p className="text-sm text-suave">Nenhum produto neste estoque ainda.</p>}
+            {r.nivel === 'medio' && (
+              <p className="mb-2 text-sm text-amber-200">
+                {r.medios.length} produto(s) perto do mínimo. Vale programar a reposição.
+              </p>
+            )}
+            {r.nivel === 'baixo' && (
+              <p className="mb-2 text-sm text-rose-300">{r.baixos.length} produto(s) abaixo do mínimo. Reponha o quanto antes.</p>
+            )}
+            {r.baixos.length > 0 && (
               <ul className="space-y-2">
                 {r.baixos.slice(0, 12).map((p) => {
                   const e = estoqueNaLoja(p, r.loja.id);
@@ -135,6 +160,30 @@ export default function Painel() {
                   </li>
                 )}
               </ul>
+            )}
+            {r.medios.length > 0 && (
+              <>
+                {r.nivel === 'baixo' && (
+                  <p className="mb-2 mt-4 text-sm text-amber-200">Também perto do mínimo ({r.medios.length}):</p>
+                )}
+                <ul className="space-y-2">
+                  {r.medios.slice(0, 8).map((p) => {
+                    const e = estoqueNaLoja(p, r.loja.id);
+                    return (
+                      <li key={p.id} className="flex flex-wrap items-start justify-between gap-2 rounded-lg border border-amber-400/30 bg-amber-400/5 p-3">
+                        <Link href={`/produtos/${p.id}`} className="min-w-0 font-medium hover:text-dourado">
+                          {p.nome}
+                        </Link>
+                        <span className="text-sm tabular">
+                          <b className="text-amber-300">{e.saldo}</b>
+                          <span className="text-suave"> / mín. {e.estoque_minimo}</span>
+                        </span>
+                      </li>
+                    );
+                  })}
+                  {r.medios.length > 8 && <li className="text-center text-sm text-suave">e mais {r.medios.length - 8} produto(s)</li>}
+                </ul>
+              </>
             )}
           </div>
         ))}

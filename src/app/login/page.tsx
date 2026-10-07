@@ -2,6 +2,7 @@
 
 import { Loader2 } from 'lucide-react';
 import Image from 'next/image';
+import { Rodape } from '@/components/rodape';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { Campo } from '@/components/ui';
@@ -51,7 +52,7 @@ export default function PaginaLogin() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[radial-gradient(ellipse_at_top,_#0d3b8240,_transparent_60%)] p-4">
+    <main className="flex min-h-screen flex-col items-center justify-center bg-[radial-gradient(ellipse_at_top,_#0d3b8240,_transparent_60%)] p-4">
       <div className="w-full max-w-sm">
         <div className="mb-6 flex flex-col items-center">
           <Image src="/logo.png" alt="DELLA Distribuidora de Produtos" width={240} height={218} priority />
@@ -99,6 +100,7 @@ export default function PaginaLogin() {
           </button>
         </form>
       </div>
+      <Rodape />
     </main>
   );
 }

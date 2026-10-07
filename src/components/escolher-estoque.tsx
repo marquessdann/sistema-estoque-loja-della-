@@ -2,6 +2,7 @@
 
 import { Loader2, Lock, Warehouse } from 'lucide-react';
 import Image from 'next/image';
+import { Rodape } from './rodape';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { useDados } from '@/lib/dados';
@@ -86,6 +87,7 @@ export function EscolherEstoque({ aoCancelar }: { aoCancelar?: () => void }) {
             Voltar sem trocar de estoque
           </button>
         )}
+        <Rodape />
       </div>
     </div>
   );
