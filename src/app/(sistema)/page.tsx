@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowLeftRight, PackagePlus, TriangleAlert } from 'lucide-react';
+import { ArrowLeftRight, TriangleAlert } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { LojaTag } from '@/components/loja';
@@ -72,30 +72,6 @@ export default function Painel() {
           <div className="mt-1 break-words font-titulo text-xl font-bold tabular text-dourado sm:text-2xl">{moeda(valorTotal)}</div>
           <div className="text-xs text-suave">custo médio × saldo, todas as lojas</div>
         </div>
-      </div>
-
-      {/* Atalhos (só o que o usuário pode fazer) */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {pode('entrada') && (
-          <Link href="/entrada" className="btn-principal h-14 text-base">
-            <PackagePlus className="h-5 w-5" /> Entrada
-          </Link>
-        )}
-        {pode('transferir') && (
-          <Link href="/transferencia" className="btn-azul h-14 text-base">
-            <ArrowLeftRight className="h-5 w-5" /> Transferir
-          </Link>
-        )}
-        {pode('saida') && (
-          <Link href="/saida" className="btn-secundario h-14 text-base">
-            Saída
-          </Link>
-        )}
-        {pode('inventario') && (
-          <Link href="/inventario" className="btn-secundario h-14 text-base">
-            Inventário
-          </Link>
-        )}
       </div>
 
       {/* Alertas de estoque baixo */}
