@@ -82,7 +82,7 @@ Os testes automáticos rodaram do zero num banco limpo, depois da última mudan�
 | 38 | Baixa com **nº do pedido, nº da NF e dia** | ✅ e também **hora** e **nome do cliente** |
 | 39 | **Entrada**: nº do pedido, nº da NF que entrou, **data e hora** | ✅ (o nº da NF vem sozinho ao importar o XML) |
 | 40 | **Saída "Pedido"** (nº do pedido, NF, cliente), no FULL ou no DELLA ESTOQUE | ✅ nº do pedido obrigatório |
-| 41 | No DELLA ESTOQUE, campo **"Qual plataforma?" Mercado Livre / TikTok Shop** | ✅ obrigatório no DELLA ESTOQUE; no FULL é sempre Mercado Livre |
+| 41 | No DELLA ESTOQUE, campo **"Qual plataforma?" Mercado Livre / TikTok Shop / Shopee** | ✅ obrigatório no DELLA ESTOQUE; no FULL é sempre Mercado Livre |
 | 42 | DELLA ESTOQUE atende o próprio estoque **e o TikTok** | ⚠️ feito como **campo de plataforma** no pedido (o saldo continua um só; o relatório filtra por plataforma). Se quiser **saldos separados** para o TikTok, me avise |
 | 43 | Outras saídas (perda, avaria, uso interno) | ✅ na aba "Outra saída" |
 

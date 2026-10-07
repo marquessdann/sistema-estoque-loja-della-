@@ -50,7 +50,7 @@ Faça estes testes depois de publicar. Marque cada um ✅.
 - [ ] Painel: produto abaixo do mínimo no FULL com sobra no ESTOQUE mostra **"Sugestão: transferir X"**, e o botão abre a transferência preenchida.
 
 ## Saída (pedidos), inventário e estorno
-- [ ] 🤖 No **DELLA ESTOQUE**, a saída de pedido pergunta **"Qual plataforma?"** (Mercado Livre / TikTok Shop). Sem plataforma ou sem nº do pedido, não grava.
+- [ ] 🤖 No **DELLA ESTOQUE**, a saída de pedido pergunta **"Qual plataforma?"** (Mercado Livre / TikTok Shop / Shopee). Sem plataforma ou sem nº do pedido, não grava.
 - [ ] 🤖 No **DELLA FULL ML**, a plataforma é sempre Mercado Livre.
 - [ ] 🤖 A baixa grava nº do pedido, NF, cliente, data e hora, e aparece em Movimentações e no Log.
 - [ ] 🤖 Baixa de **1 kit** tira 1 de cada pinça do kit.

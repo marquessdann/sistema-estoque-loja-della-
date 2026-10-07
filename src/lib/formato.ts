@@ -212,6 +212,7 @@ export function podeCargo(cargo: Cargo, p: Permissao) {
 export const PLATAFORMAS: Record<Plataforma, { rotulo: string; cor: string }> = {
   mercado_livre: { rotulo: 'Mercado Livre', cor: 'bg-yellow-300 text-slate-900' },
   tiktok_shop: { rotulo: 'TikTok Shop', cor: 'bg-slate-900 text-white' },
+  shopee: { rotulo: 'Shopee', cor: 'bg-orange-600 text-white' },
 };
 export const rotuloPlataforma = (p: Plataforma | string | null | undefined) =>
   p ? (PLATAFORMAS[p as Plataforma]?.rotulo ?? p) : '';

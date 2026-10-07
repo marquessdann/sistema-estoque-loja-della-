@@ -74,7 +74,7 @@ export default function Saida() {
 
   const problemas: string[] = [];
   if (modo === 'pedido') {
-    if (!plataformaFinal) problemas.push('Escolha a plataforma do pedido (Mercado Livre ou TikTok Shop).');
+    if (!plataformaFinal) problemas.push('Escolha a plataforma do pedido (Mercado Livre, TikTok Shop ou Shopee).');
     if (!pedido.trim()) problemas.push('Informe o número do pedido.');
   } else if (motivo === 'outro' && !obs.trim()) problemas.push('Para o motivo "Outro", descreva na observação.');
   if (itens.length === 0) problemas.push('Adicione pelo menos um produto.');
@@ -158,7 +158,7 @@ export default function Saida() {
       <div className="grid grid-cols-2 gap-2" role="tablist">
         {(
           [
-            ['pedido', 'Pedido (venda)', 'Mercado Livre / TikTok Shop'],
+            ['pedido', 'Pedido (venda)', 'Mercado Livre / TikTok Shop / Shopee'],
             ['outra', 'Outra saída', 'Perda, avaria, uso interno...'],
           ] as const
         ).map(([v, rot, sub]) => (
@@ -190,7 +190,7 @@ export default function Saida() {
                 <span className="text-suave">O FULL só atende pedidos do Mercado Livre.</span>
               </p>
             ) : (
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                 {(Object.keys(PLATAFORMAS) as Plataforma[]).map((p) => (
                   <button
                     key={p}

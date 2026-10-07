@@ -155,7 +155,7 @@ A **Saída** é a mercadoria indo para as **lojas** (pedidos de clientes). Manda
 **Pedido (venda):**
 1. Menu **Saída (pedidos)** e aba **Pedido (venda)**.
 2. **Qual plataforma?**
-   - no **DELLA ESTOQUE**: toque em **Mercado Livre** ou **TikTok Shop**;
+   - no **DELLA ESTOQUE**: toque em **Mercado Livre**, **TikTok Shop** ou **Shopee**;
    - no **DELLA FULL ML**: é sempre **Mercado Livre** (não precisa escolher).
 3. Preencha:
    - **Número do pedido** (obrigatório);

@@ -97,6 +97,10 @@ O arquivo cadastra:
 
 Se rodar duas vezes, não duplica nada.
 
+### 1.4b — Arquivo 07 (plataforma Shopee)
+
+Rode também o [`supabase/07_shopee.sql`](../supabase/07_shopee.sql) no **SQL Editor** (**+** → colar → **Run**). Ele acrescenta a **Shopee** como plataforma de saída. Pode rodar a qualquer momento depois do 05; não apaga nada.
+
 ### 1.5 — Copiar as chaves de acesso
 
 1. Clique em **Project Settings** (engrenagem) e depois em **API Keys** (ou **API**).

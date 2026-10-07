@@ -49,7 +49,7 @@ Um cadastro único de produtos, saldo separado por loja, transferências "tudo o
   - **CEO:** tudo.
   - **Gerente:** autoriza, mas sem usuários e configurações.
   - **Funcionário:** só baixa e transferência.
-- **Entrada e saída com pedido:** nº do pedido, nº da NF, cliente, data e hora. No DELLA ESTOQUE, a saída pergunta a plataforma (Mercado Livre / TikTok Shop).
+- **Entrada e saída com pedido:** nº do pedido, nº da NF, cliente, data e hora. No DELLA ESTOQUE, a saída pergunta a plataforma (Mercado Livre / TikTok Shop / Shopee).
 - **Kits:** a baixa de 1 kit tira cada componente do estoque.
 - **Dados fiscais:** NCM, CEST, origem e código do fornecedor.
 - **Estoque com senha:** ao entrar, a pessoa escolhe o estoque (DELLA ESTOQUE ou DELLA FULL ML) e digita a senha dele. Entradas, saídas, inventário e transferências só acontecem no estoque em que ela está (o banco confere).
@@ -71,6 +71,7 @@ supabase/
   04_cargos_e_baixa.sql   ← cargos CEO/Gerente/Funcionário; pedido, NF, cliente, plataforma e data/hora
   05_kits_e_fiscal.sql    ← kits e NCM/CEST/origem/código do fornecedor
   06_produtos_della.sql   ← os 49 produtos reais + 4 kits + histórico (planilha e notas), depois de criar o CEO
+  07_shopee.sql           ← plataforma Shopee na saída
   02_dados_exemplo.sql    ← SÓ PARA TESTE: produtos de exemplo (não rodar no sistema de verdade)
 testes/
   banco.sql               ← 139 testes automáticos das regras do banco

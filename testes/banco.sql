@@ -1,6 +1,6 @@
 -- =====================================================================
 -- Bateria de testes automáticos das regras do banco (estoque e permissões).
--- Roda num banco de TESTE já com 01 + 03 + 04 + 05 + 02 aplicados (nunca em produção).
+-- Roda num banco de TESTE já com 01 + 03 + 04 + 05 + 07 + 02 aplicados (nunca em produção).
 -- Usuários de teste: admin = CEO, op1 = GERENTE, op2 = FUNCIONÁRIO.
 -- Cada linha "OK"/"FALHOU" mostra o resultado; ao final, um resumo.
 -- =====================================================================
@@ -300,7 +300,7 @@ select pg_temp.espera_erro('Saída para pedido sem número do pedido é bloquead
 select pg_temp.espera_erro('No DELLA ESTOQUE é obrigatório escolher a plataforma',
   format($$select registrar_saida('{"loja_id":%s,"motivo":"venda","numero_pedido":"77","itens":[{"produto_id":%s,"quantidade":1}]}')$$, pg_temp.lid('ESTOQUE'), pg_temp.pid('NAV-INOX')), 'Escolha a plataforma');
 select pg_temp.espera_erro('Plataforma inventada é bloqueada',
-  format($$select registrar_saida('{"loja_id":%s,"motivo":"venda","numero_pedido":"77","plataforma":"shopee","itens":[{"produto_id":%s,"quantidade":1}]}')$$, pg_temp.lid('ESTOQUE'), pg_temp.pid('NAV-INOX')), 'Plataforma inválida');
+  format($$select registrar_saida('{"loja_id":%s,"motivo":"venda","numero_pedido":"77","plataforma":"magalu","itens":[{"produto_id":%s,"quantidade":1}]}')$$, pg_temp.lid('ESTOQUE'), pg_temp.pid('NAV-INOX')), 'Plataforma inválida');
 select pg_temp.espera_erro('Data e hora no futuro são bloqueadas',
   format($$select registrar_saida('{"loja_id":%s,"motivo":"venda","numero_pedido":"77","plataforma":"tiktok_shop","data_hora":"2099-01-01T10:00","itens":[{"produto_id":%s,"quantidade":1}]}')$$, pg_temp.lid('ESTOQUE'), pg_temp.pid('NAV-INOX')), 'futuro');
 select pg_temp.saldo('NAV-INOX', 'ESTOQUE') as nav_antes \gset
@@ -313,9 +313,15 @@ select pg_temp.checar('Pedido grava nº do pedido, NF, cliente, plataforma, dia 
           and to_char(data_hora at time zone 'America/Sao_Paulo', 'DD/MM/YYYY HH24:MI') = '15/01/2026 14:30'
      from vw_operacoes where id = :ped1));
 select pg_temp.checar('Histórico mostra o pedido em cada movimento', exists (select 1 from vw_movimentacoes where operacao_id = :ped1 and numero_pedido = 'TT-5501' and plataforma = 'tiktok_shop'));
+select registrar_saida(format('{"loja_id":%s,"motivo":"venda","numero_pedido":"SHP-900","numero_nf":"77","cliente_nome":"Ana","plataforma":"shopee","itens":[{"produto_id":%s,"quantidade":1}]}',
+       pg_temp.lid('ESTOQUE'), pg_temp.pid('NAV-INOX'))::jsonb) as shp \gset
+select pg_temp.checar('Baixa de pedido da Shopee no DELLA ESTOQUE grava a plataforma',
+  (select plataforma = 'shopee' and numero_pedido = 'SHP-900' and cliente_nome = 'Ana' from vw_operacoes where id = :shp));
 select pg_temp.no_estoque('op2@teste.com', 'FULL_ML');
 select pg_temp.espera_erro('No DELLA FULL ML não existe pedido do TikTok Shop',
   format($$select registrar_saida('{"loja_id":%s,"motivo":"venda","numero_pedido":"1","plataforma":"tiktok_shop","itens":[{"produto_id":%s,"quantidade":1}]}')$$, pg_temp.lid('FULL_ML'), pg_temp.pid('LAM-CX100')), 'sempre do Mercado Livre');
+select pg_temp.espera_erro('No DELLA FULL ML não existe pedido da Shopee',
+  format($$select registrar_saida('{"loja_id":%s,"motivo":"venda","numero_pedido":"1","plataforma":"shopee","itens":[{"produto_id":%s,"quantidade":1}]}')$$, pg_temp.lid('FULL_ML'), pg_temp.pid('LAM-CX100')), 'sempre do Mercado Livre');
 select registrar_saida(format('{"loja_id":%s,"motivo":"venda","numero_pedido":"2000123456","numero_nf":"889","cliente_nome":"João","itens":[{"produto_id":%s,"quantidade":1}]}',
        pg_temp.lid('FULL_ML'), pg_temp.pid('LAM-CX100'))::jsonb) as ped2 \gset
 select pg_temp.checar('Baixa no FULL sai como Mercado Livre automaticamente',
@@ -393,6 +399,7 @@ select pg_temp.como('admin@teste.com');
 select pg_temp.checar('CEO vê o log com quem fez cada mudança e o cargo',
   exists (select 1 from vw_log where usuario_nome = 'Funcionario Dois' and perfil = 'funcionario' and acao = 'Transferência')
   and exists (select 1 from vw_log where usuario_nome = 'Admin Teste' and acao like 'Criou produto%'));
+select pg_temp.checar('Log mostra a plataforma Shopee', exists (select 1 from vw_log where detalhe like '%Shopee · Pedido SHP-900%'));
 select pg_temp.checar('Log mostra a baixa com plataforma, pedido e cliente',
   exists (select 1 from vw_log where acao = 'Baixa (saída)' and detalhe like '%TikTok Shop%Pedido TT-5501%Cliente Maria Souza%NF 1234%'));
 select pg_temp.como('op1@teste.com');

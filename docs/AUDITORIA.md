@@ -21,7 +21,7 @@ Pedidos aplicados nesta rodada (detalhe item por item em [`CHECKLIST.md`](CHECKL
   - **Antonio = Funcionário** (baixa e transferência; vê só o que lançou).
 - **Login por usuário:** `daniel`, `vinicius`, `antonio.gv`. Por dentro, cada um é `usuario@della.local`. Senha mínima de 6 caracteres.
 - **Entrada:** nº do pedido, nº da NF que entrou, data e hora.
-- **Saída = para as lojas.** Pedido com nº do pedido (obrigatório), NF, cliente, data e hora. No DELLA ESTOQUE, **"Qual plataforma?"** (Mercado Livre / TikTok Shop); no FULL, sempre Mercado Livre. **Transferência = entre estoques.**
+- **Saída = para as lojas.** Pedido com nº do pedido (obrigatório), NF, cliente, data e hora. No DELLA ESTOQUE, **"Qual plataforma?"** (Mercado Livre / TikTok Shop / Shopee); no FULL, sempre Mercado Livre. **Transferência = entre estoques.**
 - **Kits** e dados fiscais (NCM, CEST, origem, código do fornecedor) (`05_kits_e_fiscal.sql`).
 - **Produtos reais** da DELLA (`06_produtos_della.sql`):
   - 49 produtos e 4 kits;

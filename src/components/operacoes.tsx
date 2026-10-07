@@ -44,7 +44,7 @@ export function LojasDaOperacao({ op }: { op: OperacaoResumo }) {
   return <span className="text-xs text-suave">Todas as lojas</span>;
 }
 
-// Etiqueta da plataforma do pedido (Mercado Livre / TikTok Shop)
+// Etiqueta da plataforma do pedido (Mercado Livre / TikTok Shop / Shopee)
 export function PlataformaTag({ plataforma }: { plataforma: Plataforma | null | undefined }) {
   if (!plataforma || !PLATAFORMAS[plataforma]) return null;
   return <span className={`rounded px-1.5 py-0.5 text-xs font-bold ${PLATAFORMAS[plataforma].cor}`}>{PLATAFORMAS[plataforma].rotulo}</span>;

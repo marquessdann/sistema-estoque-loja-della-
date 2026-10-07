@@ -26,7 +26,7 @@ export interface Loja {
 }
 
 export type Cargo = 'ceo' | 'gerente' | 'funcionario';
-export type Plataforma = 'mercado_livre' | 'tiktok_shop';
+export type Plataforma = 'mercado_livre' | 'tiktok_shop' | 'shopee';
 
 export interface Usuario {
   id: string;
