@@ -8,6 +8,7 @@ import { erroDoItem, ListaItens, type ItemLancamento } from '@/components/lista-
 import { LojaTag } from '@/components/loja';
 import { anexarNaOperacao, errosDaNota, NotaFiscalCampos, prepararNota } from '@/components/nota-fiscal';
 import { ProdutoBusca } from '@/components/produto-busca';
+import { ProdutoRapido } from '@/components/produto-rapido';
 import { Campo, Confirmar, Expansivel, SemPermissao, Titulo } from '@/components/ui';
 import { useDados } from '@/lib/dados';
 import { mensagemErro } from '@/lib/erros';
@@ -31,6 +32,7 @@ export default function Entrada() {
   const [pendentes, setPendentes] = useState<ItemNFe[]>([]);
   const [veioDoXml, setVeioDoXml] = useState(false);
   const [confirmar, setConfirmar] = useState(false);
+  const [novoProduto, setNovoProduto] = useState(false);
   const [ocupado, setOcupado] = useState(false);
   const [ultima, setUltima] = useState<number | null>(null);
   const inicializado = useRef(false);
@@ -284,7 +286,18 @@ export default function Entrada() {
       )}
 
       <div className="cartao space-y-3">
-        <h2 className="font-titulo font-bold">Produtos</h2>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="font-titulo font-bold">Produtos que estão entrando</h2>
+          {pode('produtos') && (
+            <button type="button" className="btn-secundario" onClick={() => setNovoProduto(true)}>
+              <Plus className="h-4 w-4" /> Produto novo (ainda não cadastrado)
+            </button>
+          )}
+        </div>
+        <p className="text-sm text-suave">
+          Busque o produto pelo nome, SKU ou código de barras. Ao escolher, aparecem os campos de <b>quantidade</b> e{' '}
+          <b>custo unitário</b>. Produto que ainda não existe: use o botão <b>Produto novo</b>.
+        </p>
         <ProdutoBusca aoEscolher={(p) => adicionar(p)} semKits />
         <ListaItens itens={itens} aoMudar={setItens} modo="entrada" lojaDestino={lojaEscolhida} />
         {veioDoXml && (
@@ -343,6 +356,11 @@ export default function Entrada() {
           ))}
         </ul>
       </Confirmar>
+      <ProdutoRapido
+        aberto={novoProduto}
+        aoFechar={() => setNovoProduto(false)}
+        aoCriar={(id, quantidade, custo) => setItens((atual) => [...atual, { produto_id: id, quantidade, custo }])}
+      />
       {ocupado && <Loader2 className="fixed bottom-24 right-6 h-6 w-6 animate-spin text-dourado" />}
     </div>
   );

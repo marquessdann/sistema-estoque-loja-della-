@@ -170,6 +170,7 @@ export function CampoQuantidade({
   min = 0,
   className = '',
   autoFocus,
+  base,
 }: {
   valor: number | '';
   aoMudar: (v: number | '') => void;
@@ -177,9 +178,11 @@ export function CampoQuantidade({
   min?: number;
   className?: string;
   autoFocus?: boolean;
+  /** com o campo vazio, − e + partem deste número (ex.: o saldo do sistema no inventário) */
+  base?: number;
 }) {
   const passo = (d: number) => {
-    let n = (Number(valor) || 0) + d;
+    let n = (valor === '' ? (base ?? 0) : Number(valor) || 0) + d;
     n = Math.max(min, n);
     if (max !== undefined) n = Math.min(max, n);
     aoMudar(n);

@@ -147,6 +147,7 @@ export default function Inventario() {
                         <td>
                           <CampoQuantidade
                             valor={c ?? ''}
+                            base={saldo(p)}
                             aoMudar={(v) => {
                               setContagem((atual) => ({ ...atual, [p.id]: v }));
                               setSaldoVisto((atual) => (p.id in atual ? atual : { ...atual, [p.id]: saldo(p) }));
