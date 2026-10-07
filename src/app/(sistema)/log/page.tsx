@@ -124,7 +124,7 @@ export default function Log() {
                   )}
                   <span className="text-neutral-300">{r.acao}</span>
                   {r.origem === 'operacao' && (
-                    <Link href={`/movimentacoes?op=${r.referencia}`} className="text-xs text-dourado hover:underline">
+                    <Link href={`/movimentacoes?op=${r.referencia}`} className="inline-flex min-h-[36px] items-center px-1 text-xs text-dourado hover:underline">
                       nº {r.referencia}
                     </Link>
                   )}

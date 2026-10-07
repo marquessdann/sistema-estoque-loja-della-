@@ -242,7 +242,7 @@ export function Expansivel({
   return (
     <div className="cartao">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <button type="button" className="flex items-center gap-2 text-left font-semibold" onClick={() => setAberto(!aberto)}>
+        <button type="button" className="flex min-h-[44px] items-center gap-2 text-left font-semibold" onClick={() => setAberto(!aberto)}>
           <span
             className={`inline-flex h-6 w-6 items-center justify-center rounded border border-borda text-dourado transition ${aberto ? 'rotate-90' : ''}`}
           >

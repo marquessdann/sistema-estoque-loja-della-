@@ -31,7 +31,7 @@ export default function Inventario() {
   const [ocupado, setOcupado] = useState(false);
 
   const lojaEscolhida = loja(lojaId);
-  const ativos = useMemo(() => produtos.filter((p) => p.ativo), [produtos]);
+  const ativos = useMemo(() => produtos.filter((p) => p.ativo && !p.eh_kit), [produtos]);
   const visiveis = useMemo(() => {
     let l = ativos;
     if (categoria) l = l.filter((p) => p.categoria_id === categoria);

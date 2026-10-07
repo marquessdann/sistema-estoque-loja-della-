@@ -2,6 +2,13 @@
 
 Tempo estimado: **40 minutos**. Custo: **R$ 0** (planos gratuitos).
 
+**Resumo da ordem (não pule nenhuma):**
+1. Passo 0 – juntar o código na branch `main` do GitHub.
+2. Passo 1 – Supabase: rodar os arquivos **01 → 03 → 04 → 05**, fechar o cadastro público, criar o **Daniel (CEO)**, rodar o **06** (produtos reais) e copiar as chaves.
+3. Passo 2 – Vercel: importar o repositório, colar as 3 chaves e publicar.
+4. Passo 3 – Backup diário (opcional, recomendado).
+5. Passo 4 – Endereço próprio (opcional).
+
 Você vai usar 3 serviços:
 
 | Serviço | Para que serve |
@@ -36,16 +43,23 @@ O código foi entregue na branch `claude/zen-maxwell-iujchd`. Para a Vercel publ
    - Plano: **Free**
 3. Espere uns 2 minutos até o projeto ficar pronto.
 
-### 1.1 — Criar as tabelas
+### 1.1 — Criar as tabelas (4 arquivos, nesta ordem)
 
 1. No menu da esquerda, clique em **SQL Editor**.
 2. Clique em **New query** (ou no **+**).
 3. No GitHub, abra o arquivo [`supabase/01_estrutura.sql`](../supabase/01_estrutura.sql), clique no botão **Copy raw file** (ícone de copiar), volte ao Supabase e cole na área de texto.
 4. Clique em **Run** (ou Ctrl+Enter). Deve aparecer **"Success. No rows returned"**.
-5. Repita o processo com o arquivo [`supabase/03_versao2_permissoes_transferencias.sql`](../supabase/03_versao2_permissoes_transferencias.sql) (estoque com senha, permissões, transferência e log de atividades). **Obrigatório.**
-6. (Opcional) Para ter produtos de exemplo (pinças, navalha...), repita com [`supabase/02_dados_exemplo.sql`](../supabase/02_dados_exemplo.sql). Depois, se quiser, você pode inativar ou excluir esses produtos.
+5. Clique em **New query** de novo e repita com cada arquivo abaixo, **um de cada vez e nesta ordem**:
 
-> **Já usa a versão 1?** Rode apenas o arquivo `03_...sql`: ele atualiza o banco sem apagar nenhum dado.
+   | Ordem | Arquivo | O que faz |
+   |---|---|---|
+   | 2º | [`03_versao2_permissoes_transferencias.sql`](../supabase/03_versao2_permissoes_transferencias.sql) | Estoque com senha, transferência na hora, log de atividades |
+   | 3º | [`04_cargos_e_baixa.sql`](../supabase/04_cargos_e_baixa.sql) | Cargos CEO / Gerente / Funcionário; pedido, NF, cliente, plataforma e data/hora na entrada e saída |
+   | 4º | [`05_kits_e_fiscal.sql`](../supabase/05_kits_e_fiscal.sql) | Kits e NCM / CEST / origem / código do fornecedor |
+
+> ⚠️ **Não rode o `02_dados_exemplo.sql`** no sistema de verdade: ele só tem produtos de teste. Os produtos reais da DELLA entram pelo arquivo `06` (passo 1.4).
+>
+> **Já usa uma versão anterior?** Rode só os arquivos que faltam, na ordem (ex.: quem já rodou 01 e 03 roda 04 e 05). Nenhum dado é apagado.
 
 As duas lojas, **DELLA ESTOQUE** (azul) e **DELLA FULL ML** (dourado), já são criadas pelo primeiro arquivo.
 
@@ -56,15 +70,34 @@ Só o administrador cria usuários, pelo próprio sistema. O banco já recusa qu
 1. Menu **Authentication > Sign In / Providers** (em algumas versões: **Authentication > Providers**, ou **Settings**).
 2. **Desligue** a opção **"Allow new users to sign up"** e clique em **Save**.
 
-### 1.3 — Criar o primeiro usuário (Administrador)
+### 1.3 — Criar o primeiro usuário (Daniel, o CEO)
+
+O sistema entra por **usuário** (ex.: `daniel`), não por e-mail. Por dentro, o usuário `daniel` é guardado como o e-mail `daniel@della.local`.
 
 1. Menu **Authentication > Users > Add user > Create new user**.
-2. Preencha o seu **e-mail** e uma **senha** (mínimo de 8 caracteres).
+2. Em **Email**, digite exatamente `daniel@della.local`. Em **Password**, digite a senha do Daniel.
 3. Marque **Auto Confirm User** e clique em **Create user**.
 
-✅ O **primeiro** usuário criado vira **Administrador** automaticamente. Os outros 2 você cria depois, dentro do sistema (tela **Usuários**).
+> A senha mínima do Supabase é de 6 caracteres. Se ele recusar uma senha curta, veja em **Authentication > Sign In / Providers > Email > Minimum password length** (deixe 6).
 
-### 1.4 — Copiar as chaves de acesso
+✅ O **primeiro** usuário criado vira **CEO** automaticamente. Vinicius e Antonio você cria depois, dentro do sistema (tela **Usuários**).
+
+### 1.4 — Cadastrar os produtos reais da DELLA
+
+Precisa ser **depois** do passo 1.3, porque os lançamentos ficam no nome do CEO.
+
+1. **SQL Editor > New query**.
+2. Copie e cole o arquivo [`supabase/06_produtos_della.sql`](../supabase/06_produtos_della.sql) e clique em **Run**.
+3. Embaixo aparece uma tabela com o **saldo de cada produto no DELLA ESTOQUE**. Confira com a sua planilha: por exemplo, a Navalha Aço Inox Standard deve ter **44**.
+
+O arquivo cadastra:
+- os 49 produtos e os 4 kits;
+- as entradas das notas 16.653 (Itapema) e 46.780 (Vermonth), dos pedidos 3108 e 3136 (Elementar);
+- as vendas do Mercado Livre.
+
+Se rodar duas vezes, não duplica nada.
+
+### 1.5 — Copiar as chaves de acesso
 
 1. Clique em **Project Settings** (engrenagem) e depois em **API Keys** (ou **API**).
 2. Anote:
@@ -83,7 +116,7 @@ Só o administrador cria usuários, pelo próprio sistema. O banco já recusa qu
 
    | Name | Value |
    |---|---|
-   | `NEXT_PUBLIC_SUPABASE_URL` | a Project URL do passo 1.4 |
+   | `NEXT_PUBLIC_SUPABASE_URL` | a Project URL do passo 1.5 |
    | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | a chave anon/publishable |
    | `SUPABASE_SERVICE_ROLE_KEY` | a chave service_role/secret |
 
@@ -102,10 +135,16 @@ Isso é necessário para o link de "Esqueci minha senha" funcionar.
 ### 2.2 — Primeiro acesso
 
 1. Abra o endereço da Vercel no navegador (computador ou celular).
-2. Entre com o e-mail e a senha do passo 1.3. Escolha o estoque e digite a **senha do estoque**: `Galaxys2!` (troque depois em **Configurações > Lojas**).
-3. Vá em **Usuários e permissões** (menu da esquerda, ou **Mais** no celular). Corrija o seu nome em **Editar** (ex.: Daniel) e crie os outros 2 usuários (ex.: Vinicius como Administrador e Antonio como Operador), marcando o que o operador pode fazer.
+2. Entre com o usuário `daniel` e a senha do passo 1.3. Escolha o estoque e digite a **senha do estoque**: `Galaxys2!`.
+3. **Troque as senhas dos estoques:** **Configurações > Lojas > Trocar senha** (uma para cada estoque).
+4. Vá em **Usuários** (menu da esquerda, ou **Mais** no celular):
+   - corrija o seu nome em **Editar** (ex.: Daniel);
+   - em **Novo usuário**, crie o **Vinicius**: usuário `vinicius`, cargo **Gerente** e a senha dele;
+   - crie o **Antonio**: usuário `antonio.gv`, cargo **Funcionário** e a senha dele.
 
-💡 No celular, abra o sistema no navegador e use **"Adicionar à tela inicial"**. Ele fica com um ícone igual a um aplicativo.
+   Cada um troca a própria senha em **Senha**, no rodapé do menu. Esqueceu? O CEO coloca uma nova em **Usuários > Editar** (o "Esqueci minha senha" por e-mail só vale para quem foi cadastrado com e-mail de verdade).
+
+💡 **No celular:** abra o endereço no Chrome (Android) ou no Safari (iPhone) e toque em **"Adicionar à tela inicial"** (no iPhone: botão **Compartilhar** > **Adicionar à Tela de Início**). O sistema ganha um ícone igual a um aplicativo. A barra de baixo tem **Painel, Saída, Transferir, Histórico** e **Mais**.
 
 ---
 
@@ -178,7 +217,17 @@ Se um dia precisar de mais segurança, o **Supabase Pro** (cerca de US$ 25/mês)
 
 Sempre que o código mudar na branch `main` do GitHub, a Vercel publica a nova versão sozinha, em uns 2 minutos.
 
-Se uma atualização trouxer mudanças no banco, ela virá com um novo arquivo `.sql` e instruções para rodar no **SQL Editor**.
+Se uma atualização trouxer mudanças no banco, ela virá com um novo arquivo `.sql` (o próximo número da sequência) e instruções para rodar no **SQL Editor**.
+
+## Se algo der errado
+
+| Problema | O que fazer |
+|---|---|
+| "Crie primeiro o usuário CEO" ao rodar o 06 | Faça o passo 1.3 e rode o 06 de novo |
+| Erro "relation/function does not exist" ao rodar um arquivo | Um arquivo anterior não foi rodado: siga a ordem 01 → 03 → 04 → 05 → 06 |
+| A página da Vercel mostra erro ao abrir | Confira as 3 variáveis do passo 2 (sem espaços sobrando) e clique em **Deployments > Redeploy** |
+| "Esqueci minha senha" não chega ou o link não abre | Confira o passo 2.1 (Site URL e Redirect URLs) |
+| Alguém esqueceu a senha do estoque | O CEO define uma nova em **Configurações > Lojas** |
 
 ## Rodar no seu computador (opcional, para técnicos)
 

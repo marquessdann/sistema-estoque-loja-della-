@@ -42,7 +42,32 @@ const Contexto = createContext<Dados | null>(null);
 export const CAMPOS_LOJA = 'id, codigo, nome, cor, ordem, ativa';
 
 const CAMPOS_PRODUTO =
-  'id, sku, ean, nome, categoria_id, marca_id, unidade, preco_custo, preco_venda, custo_medio, foto_path, observacoes, ativo, ml_item_id, criado_em, atualizado_em, estoques:produto_loja(loja_id, saldo, estoque_minimo)';
+  'id, sku, ean, nome, categoria_id, marca_id, unidade, preco_custo, preco_venda, custo_medio, foto_path, observacoes, ativo, ml_item_id, codigo_fornecedor, ncm, cest, origem_fiscal, eh_kit, criado_em, atualizado_em, estoques:produto_loja(loja_id, saldo, estoque_minimo), kit:kit_itens!kit_itens_kit_id_fkey(produto_id, quantidade)';
+
+// Kit não tem estoque próprio: o "saldo" dele é quantos kits dá para montar
+// em cada loja com os componentes que existem (o que acabar primeiro manda).
+function calcularKits(lista: Produto[]): Produto[] {
+  const mapa = new Map(lista.map((p) => [p.id, p]));
+  return lista.map((p) => {
+    if (!p.eh_kit || !p.kit?.length) return p;
+    return {
+      ...p,
+      // custo do kit = soma do custo médio dos componentes
+      custo_medio: p.kit.reduce((s, k) => s + (mapa.get(k.produto_id)?.custo_medio ?? 0) * k.quantidade, 0),
+      estoques: p.estoques.map((e) => ({
+        ...e,
+        estoque_minimo: 0,
+        saldo: Math.min(
+          ...p.kit.map((k) => {
+            const c = mapa.get(k.produto_id);
+            const s = c?.estoques.find((x) => x.loja_id === e.loja_id)?.saldo ?? 0;
+            return Math.floor(s / k.quantidade);
+          }),
+        ),
+      })),
+    };
+  });
+}
 
 async function carregarTodosProdutos(): Promise<Produto[]> {
   const sb = supabaseNavegador();
@@ -65,7 +90,7 @@ async function carregarTodosProdutos(): Promise<Produto[]> {
     );
     if (!data || data.length < pagina) break;
   }
-  return lista;
+  return calcularKits(lista);
 }
 
 export function DadosProvider({ children }: { children: React.ReactNode }) {
@@ -128,6 +153,7 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'produtos' }, agendar)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'operacoes' }, agendar)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'transferencias' }, agendar)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'kit_itens' }, agendar)
       .subscribe();
     // ao voltar para a aba, garante dados frescos
     const aoFocar = () => document.visibilityState === 'visible' && agendar();

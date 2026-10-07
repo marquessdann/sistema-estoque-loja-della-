@@ -81,7 +81,10 @@ export default function Entrada() {
       let achados = 0;
       for (const item of dados.itens) {
         const p = produtos.find(
-          (x) => x.ativo && ((item.ean && x.ean === item.ean) || x.sku === item.codigo.toUpperCase()),
+          (x) =>
+            x.ativo &&
+            !x.eh_kit &&
+            ((item.ean && x.ean === item.ean) || x.sku === item.codigo.toUpperCase() || x.codigo_fornecedor === item.codigo),
         );
         if (p) {
           adicionar(p, Math.round(item.quantidade), item.valor_unitario);
@@ -282,7 +285,7 @@ export default function Entrada() {
 
       <div className="cartao space-y-3">
         <h2 className="font-titulo font-bold">Produtos</h2>
-        <ProdutoBusca aoEscolher={(p) => adicionar(p)} />
+        <ProdutoBusca aoEscolher={(p) => adicionar(p)} semKits />
         <ListaItens itens={itens} aoMudar={setItens} modo="entrada" lojaDestino={lojaEscolhida} />
         {veioDoXml && (
           <p className="text-xs text-orange-300">
@@ -366,7 +369,7 @@ function ItemPendente({
       </div>
       {vinculando ? (
         <div className="mt-2">
-          <ProdutoBusca aoEscolher={aoVincular} autoFocus placeholder="Buscar o produto correspondente..." />
+          <ProdutoBusca aoEscolher={aoVincular} autoFocus semKits placeholder="Buscar o produto correspondente..." />
         </div>
       ) : (
         <div className="mt-2 flex flex-wrap gap-2">

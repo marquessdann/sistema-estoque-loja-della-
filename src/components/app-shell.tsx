@@ -184,7 +184,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <span>Estoque: {lojaAtual.nome}</span>
             <button
               onClick={() => setTrocarEstoque(true)}
-              className="rounded-lg border border-current px-3 py-1 text-xs font-semibold normal-case opacity-90 hover:opacity-100"
+              className="min-h-[38px] rounded-lg border border-current px-3 py-1.5 text-xs font-semibold normal-case opacity-90 hover:opacity-100"
             >
               Trocar de estoque
             </button>
@@ -224,7 +224,7 @@ function TrocarSenha({ aberto, aoFechar }: { aberto: boolean; aoFechar: () => vo
 
   async function salvar(e: React.FormEvent) {
     e.preventDefault();
-    if (senha.length < 8) return toast.error('A senha precisa ter pelo menos 8 caracteres.');
+    if (senha.length < 6) return toast.error('A senha precisa ter pelo menos 6 caracteres.');
     if (senha !== confirma) return toast.error('As senhas não conferem.');
     setOcupado(true);
     const { error } = await supabaseNavegador().auth.updateUser({ password: senha });
@@ -239,7 +239,7 @@ function TrocarSenha({ aberto, aoFechar }: { aberto: boolean; aoFechar: () => vo
   return (
     <Modal aberto={aberto} aoFechar={aoFechar} titulo="Alterar minha senha">
       <form onSubmit={salvar} className="space-y-3">
-        <Campo rotulo="Nova senha" dica="Mínimo de 8 caracteres">
+        <Campo rotulo="Nova senha" dica="Mínimo de 6 caracteres">
           <input type="password" className="campo" value={senha} onChange={(e) => setSenha(e.target.value)} autoComplete="new-password" />
         </Campo>
         <Campo rotulo="Repita a nova senha">

@@ -17,6 +17,7 @@ Um cadastro único de produtos, saldo separado por loja, transferências "tudo o
 | [docs/MANUAL.md](docs/MANUAL.md) | Manual rápido: cadastrar produto, entrada com NF, transferir, inventário... |
 | [docs/TESTES.md](docs/TESTES.md) | Lista de testes para confirmar que tudo funciona |
 | [docs/AUDITORIA.md](docs/AUDITORIA.md) | Auditoria completa: checklist, matriz de permissões, problemas, correções e resultados dos testes |
+| [docs/CHECKLIST.md](docs/CHECKLIST.md) | Checklist de tudo o que foi pedido, item por item |
 
 ## Tecnologia
 
@@ -42,11 +43,18 @@ Um cadastro único de produtos, saldo separado por loja, transferências "tudo o
   - só usuários logados e ativos leem dados;
   - o aplicativo não tem permissão de gravar diretamente em saldos ou movimentações;
   - auditoria, usuários e configurações são só do administrador.
-- **Limite de 3 usuários ativos**, "sempre 1 administrador" e cadastro só por convite do administrador: regras dentro do banco.
-- **Permissões por operador** (entrada, saída, transferir, inventário, estornar, produtos, relatórios, histórico) conferidas em toda função do banco.
+- **Limite de 3 usuários ativos**, "sempre 1 CEO" e cadastro só por convite do CEO: regras dentro do banco.
+- **Login por usuário** (ex.: `daniel`, `vinicius`, `antonio.gv`).
+- **Cargos fixos** conferidos em toda função do banco:
+  - **CEO:** tudo.
+  - **Gerente:** autoriza, mas sem usuários e configurações.
+  - **Funcionário:** só baixa e transferência.
+- **Entrada e saída com pedido:** nº do pedido, nº da NF, cliente, data e hora. No DELLA ESTOQUE, a saída pergunta a plataforma (Mercado Livre / TikTok Shop).
+- **Kits:** a baixa de 1 kit tira cada componente do estoque.
+- **Dados fiscais:** NCM, CEST, origem e código do fornecedor.
 - **Estoque com senha:** ao entrar, a pessoa escolhe o estoque (DELLA ESTOQUE ou DELLA FULL ML) e digita a senha dele. Entradas, saídas, inventário e transferências só acontecem no estoque em que ela está (o banco confere).
 - **Transferência imediata** (sai de uma loja e entra na outra na hora), sempre a partir do estoque atual, com confirmação reforçada e estorno.
-- **Log de atividades** só para o administrador: quem fez cada mudança.
+- **Log de atividades** para o CEO e o gerente: quem fez cada mudança.
 - **Anti-duplicidade:** cada formulário envia uma chave única; reenvio não grava de novo.
 - **Custo médio ponderado** é recalculado a cada entrada com custo informado.
 - **Nota fiscal:**
@@ -59,12 +67,14 @@ Um cadastro único de produtos, saldo separado por loja, transferências "tudo o
 ```
 supabase/
   01_estrutura.sql        ← banco (versão 1): tabelas, regras, funções, segurança, as 2 lojas
-  03_versao2_permissoes_transferencias.sql ← versão 2: estoque com senha, permissões por operador,
-                             transferência imediata, log de atividades, anti-duplicidade (rodar depois do 01)
-  02_dados_exemplo.sql    ← produtos de exemplo (pinças, navalha...) com saldo inicial
+  03_versao2_permissoes_transferencias.sql ← estoque com senha, transferência imediata, log, anti-duplicidade
+  04_cargos_e_baixa.sql   ← cargos CEO/Gerente/Funcionário; pedido, NF, cliente, plataforma e data/hora
+  05_kits_e_fiscal.sql    ← kits e NCM/CEST/origem/código do fornecedor
+  06_produtos_della.sql   ← os 49 produtos reais + 4 kits + histórico (planilha e notas), depois de criar o CEO
+  02_dados_exemplo.sql    ← SÓ PARA TESTE: produtos de exemplo (não rodar no sistema de verdade)
 testes/
-  banco.sql               ← 99 testes automáticos das regras do banco
-  api_permissoes.sh       ← 42 tentativas de burlar a API como operador
+  banco.sql               ← 139 testes automáticos das regras do banco
+  api_permissoes.sh       ← 44 tentativas de burlar a API como funcionário e gerente
 src/
   app/
     login/, redefinir-senha/     ← telas públicas
@@ -73,7 +83,8 @@ src/
       produtos/ (lista, novo, [id], importar)
       entrada/ saida/ transferencia/ inventario/
       movimentacoes/ transferencias/ notas/ relatorios/
-      usuarios/ configuracoes/   ← só administrador
+      log/                       ← CEO e gerente
+      usuarios/ configuracoes/   ← só o CEO
     api/usuarios/route.ts        ← criar/alterar usuários (servidor, chave secreta)
   components/                    ← peças reaproveitadas (etiqueta de loja, busca, lista de itens, nota fiscal...)
   lib/                           ← dados em tempo real, formatação, validações, exportação Excel/PDF, leitura do XML

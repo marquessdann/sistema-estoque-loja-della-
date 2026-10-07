@@ -291,7 +291,7 @@ function RelPosicao() {
   const [soComSaldo, setSoComSaldo] = useState(false);
 
   const lista = useMemo(() => {
-    let l = produtos.filter((p) => p.ativo);
+    let l = produtos.filter((p) => p.ativo && !p.eh_kit);
     if (categoria) l = l.filter((p) => p.categoria_id === categoria);
     if (soComSaldo) l = l.filter((p) => p.estoques.some((e) => e.saldo > 0));
     return l;

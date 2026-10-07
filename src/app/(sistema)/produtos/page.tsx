@@ -155,6 +155,7 @@ export default function ListaProdutos() {
                   </div>
                   <div className="min-w-0">
                     <div className="font-medium leading-snug hover:text-dourado">
+                      {p.eh_kit && <span className="mr-1 rounded bg-dourado px-1.5 py-0.5 text-[10px] font-bold text-preto">KIT</span>}
                       {p.nome} {!p.ativo && <span className="text-xs text-rose-400">(inativo)</span>}
                     </div>
                     <div className="text-xs text-suave">
@@ -182,7 +183,7 @@ export default function ListaProdutos() {
                         <LojaTag loja={l} tamanho="sm" />
                         <span className={`font-titulo text-xl font-bold tabular ${baixoAqui ? 'text-rose-400' : ''}`}>{e.saldo}</span>
                         <span className="text-[10px] text-suave">
-                          mín. {e.estoque_minimo}
+                          {p.eh_kit ? 'kits possíveis' : `mín. ${e.estoque_minimo}`}
                         </span>
                       </div>
                     );

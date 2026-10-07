@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { Campo, Carregando, Modal, SemPermissao, Titulo } from '@/components/ui';
 import { useDados } from '@/lib/dados';
 import { CARGOS, dataHora } from '@/lib/formato';
+import { loginValido, nomeDeLogin, SENHA_MINIMA } from '@/lib/login';
 import { supabaseNavegador } from '@/lib/supabase/client';
 import type { Cargo, Usuario } from '@/lib/tipos';
 
@@ -68,7 +69,7 @@ export default function Usuarios() {
           {lista.map((u) => (
             <div key={u.id} className={`cartao space-y-2 ${!u.ativo ? 'opacity-50' : ''}`}>
               <div className="font-titulo text-lg font-bold">{u.nome}</div>
-              <div className="break-all text-sm text-suave">{u.email}</div>
+              <div className="break-all text-sm text-suave">usuário: <b className="text-white">{nomeDeLogin(u.email)}</b></div>
               <div className="flex flex-wrap gap-2 text-xs">
                 <span data-cargo={u.cargo} className={`rounded px-2 py-0.5 font-bold uppercase ${CARGOS[u.cargo].cor}`}>
                   {CARGOS[u.cargo].rotulo}
@@ -126,7 +127,7 @@ function FormUsuario({
   aoSalvar: () => void;
 }) {
   const [nome, setNome] = useState(usuario?.nome ?? '');
-  const [email, setEmail] = useState(usuario?.email ?? '');
+  const [email, setEmail] = useState(nomeDeLogin(usuario?.email));
   const [cargo, setCargo] = useState<Cargo>(usuario?.cargo ?? 'funcionario');
   const ehOCeo = usuario?.cargo === 'ceo';
   const [senha, setSenha] = useState('');
@@ -135,14 +136,16 @@ function FormUsuario({
 
   async function salvar(e: React.FormEvent) {
     e.preventDefault();
-    if (!usuario && senha.length < 8) return toast.error('Crie uma senha com pelo menos 8 caracteres.');
+    if (!usuario && senha.length < SENHA_MINIMA) return toast.error(`Crie uma senha com pelo menos ${SENHA_MINIMA} caracteres.`);
+    if (usuario && senha && senha.length < SENHA_MINIMA) return toast.error(`A senha precisa ter pelo menos ${SENHA_MINIMA} caracteres.`);
+    if (!usuario && !loginValido(email)) return toast.error('Usuário inválido: use letras minúsculas, números, ponto ou hífen (ex.: antonio.gv).');
     if (usuario && usuario.ativo && !ativo && !window.confirm(`Desativar ${usuario.nome}? A pessoa não vai mais conseguir entrar.`)) return;
     setOcupado(true);
     try {
       if (usuario)
         await chamarApi('PATCH', { id: usuario.id, nome, cargo: ehOCeo ? undefined : cargo, ativo, senha: senha || undefined });
       else await chamarApi('POST', { nome, email, senha, cargo });
-      toast.success(usuario ? 'Usuário atualizado!' : 'Usuário criado! Passe o e-mail e a senha para a pessoa.');
+      toast.success(usuario ? 'Usuário atualizado!' : 'Usuário criado! Passe o usuário e a senha para a pessoa.');
       aoSalvar();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Erro ao salvar.');
@@ -157,8 +160,18 @@ function FormUsuario({
         <Campo rotulo="Nome" obrigatorio>
           <input className="campo" value={nome} onChange={(e) => setNome(e.target.value)} required />
         </Campo>
-        <Campo rotulo="E-mail (usado no login)" obrigatorio>
-          <input type="email" className="campo" value={email} onChange={(e) => setEmail(e.target.value)} disabled={!!usuario} required />
+        <Campo rotulo="Usuário (login)" obrigatorio dica={usuario ? 'O usuário não muda depois de criado' : 'Ex.: antonio.gv (letras minúsculas, sem espaço)'}>
+          <input
+            className="campo"
+            name="login"
+            value={email}
+            onChange={(e) => setEmail(e.target.value.toLowerCase().replace(/\s/g, ''))}
+            disabled={!!usuario}
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            required
+          />
         </Campo>
         {ehOCeo ? (
           <p className="rounded-lg bg-white/5 p-2 text-xs text-suave">
@@ -181,7 +194,7 @@ function FormUsuario({
             </div>
           </div>
         )}
-        <Campo rotulo={usuario ? 'Nova senha (deixe vazio para manter)' : 'Senha inicial'} dica="Mínimo de 8 caracteres" obrigatorio={!usuario}>
+        <Campo rotulo={usuario ? 'Nova senha (deixe vazio para manter)' : 'Senha inicial'} dica={`Mínimo de ${SENHA_MINIMA} caracteres`} obrigatorio={!usuario}>
           <input type="text" className="campo" value={senha} onChange={(e) => setSenha(e.target.value)} autoComplete="new-password" />
         </Campo>
         {usuario && !souEu && (

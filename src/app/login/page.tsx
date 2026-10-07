@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 import { Campo } from '@/components/ui';
 import { mensagemErro } from '@/lib/erros';
+import { paraEmail } from '@/lib/login';
 import { supabaseNavegador } from '@/lib/supabase/client';
 
 export default function PaginaLogin() {
@@ -18,16 +19,16 @@ export default function PaginaLogin() {
     e.preventDefault();
     setOcupado(true);
     const sb = supabaseNavegador();
-    const { error } = await sb.auth.signInWithPassword({ email: email.trim(), password: senha });
+    const { error } = await sb.auth.signInWithPassword({ email: paraEmail(email), password: senha });
     if (error) {
       setOcupado(false);
-      return toast.error(mensagemErro(error));
+      return toast.error(/invalid login credentials/i.test(error.message) ? 'Usuário ou senha incorretos.' : mensagemErro(error));
     }
     const { error: erroLogin } = await sb.rpc('registrar_login');
     if (erroLogin) {
       await sb.auth.signOut();
       setOcupado(false);
-      return toast.error('Seu usuário está desativado. Fale com o administrador.');
+      return toast.error('Seu usuário está desativado. Fale com o CEO.');
     }
     // a cada login a pessoa escolhe de novo o estoque (com a senha do estoque)
     await sb.rpc('sair_loja');
@@ -37,6 +38,8 @@ export default function PaginaLogin() {
   async function recuperar(e: React.FormEvent) {
     e.preventDefault();
     if (!email.trim()) return toast.error('Digite seu e-mail.');
+    if (!email.includes('@'))
+      return toast.error('Quem entra por usuário (sem e-mail) pede uma nova senha ao CEO, na tela Usuários.');
     setOcupado(true);
     const { error } = await supabaseNavegador().auth.resetPasswordForEmail(email.trim(), {
       redirectTo: `${window.location.origin}/redefinir-senha`,
@@ -55,13 +58,18 @@ export default function PaginaLogin() {
           <p className="mt-2 text-xs font-semibold uppercase tracking-[0.3em] text-dourado">Controle de estoque</p>
         </div>
         <form onSubmit={modoRecuperar ? recuperar : entrar} className="cartao space-y-4">
-          <Campo rotulo="E-mail">
+          <Campo rotulo={modoRecuperar ? 'E-mail' : 'Usuário'}>
             <input
-              type="email"
+              type="text"
+              name="usuario"
               className="campo"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              autoComplete="email"
+              placeholder={modoRecuperar ? 'seu@email.com' : 'Ex.: daniel'}
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              autoComplete="username"
               required
               autoFocus
             />

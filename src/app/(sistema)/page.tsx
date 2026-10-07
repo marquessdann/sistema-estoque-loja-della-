@@ -27,7 +27,8 @@ export default function Painel() {
       .then(({ data }) => setUltimas((data ?? []) as OperacaoResumo[]));
   }, [versao, lojaAtual]);
 
-  const ativos = useMemo(() => produtos.filter((p) => p.ativo), [produtos]);
+  // kits não têm estoque próprio (os componentes já estão contados)
+  const ativos = useMemo(() => produtos.filter((p) => p.ativo && !p.eh_kit), [produtos]);
   const lojaIds = lojas.map((l) => l.id);
 
   const ordenadas = [...lojas].sort((a, b) => (a.id === lojaAtual?.id ? -1 : b.id === lojaAtual?.id ? 1 : 0));
@@ -68,7 +69,7 @@ export default function Painel() {
         ))}
         <div className="cartao border-t-4 border-t-dourado">
           <div className="text-xs uppercase tracking-wide text-suave">Valor do estoque (custo)</div>
-          <div className="mt-1 font-titulo text-2xl font-bold tabular text-dourado">{moeda(valorTotal)}</div>
+          <div className="mt-1 break-words font-titulo text-xl font-bold tabular text-dourado sm:text-2xl">{moeda(valorTotal)}</div>
           <div className="text-xs text-suave">custo médio × saldo, todas as lojas</div>
         </div>
       </div>

@@ -351,7 +351,7 @@ select o.criado_em as quando, o.usuario_id, coalesce(u.nome, 'Sistema') as usuar
          (select string_agg(p.nome || ' ' || case when m.quantidade > 0 then '+' else '' end || m.quantidade, ', ' order by p.nome)
             from public.movimentacoes m join public.produtos p on p.id = m.produto_id
            where m.operacao_id = o.id and (o.tipo <> 'transferencia' and o.transferencia_id is null or m.quantidade > 0)),
-         nullif(o.motivo, o.tipo::text),
+         case when o.motivo in (o.tipo::text, 'venda') then null else o.motivo end,
          case o.plataforma when 'mercado_livre' then 'Mercado Livre' when 'tiktok_shop' then 'TikTok Shop' end,
          case when o.numero_pedido is not null then 'Pedido ' || o.numero_pedido end,
          case when o.cliente_nome is not null then 'Cliente ' || o.cliente_nome end,

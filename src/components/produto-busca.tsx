@@ -13,11 +13,14 @@ export function ProdutoBusca({
   placeholder = 'Buscar produto por nome, SKU ou código de barras...',
   autoFocus,
   incluirInativos = false,
+  semKits = false,
 }: {
   aoEscolher: (p: Produto) => void;
   placeholder?: string;
   autoFocus?: boolean;
   incluirInativos?: boolean;
+  /** entrada, inventário e componentes: kit não tem estoque próprio */
+  semKits?: boolean;
 }) {
   const { produtos } = useDados();
   const [termo, setTermo] = useState('');
@@ -26,9 +29,9 @@ export function ProdutoBusca({
   const ref = useRef<HTMLInputElement>(null);
 
   const resultados = useMemo(() => {
-    const base = incluirInativos ? produtos : produtos.filter((p) => p.ativo);
+    const base = produtos.filter((p) => (incluirInativos || p.ativo) && !(semKits && p.eh_kit));
     return termo.trim() ? buscarProdutos(base, termo).slice(0, 8) : [];
-  }, [produtos, termo, incluirInativos]);
+  }, [produtos, termo, incluirInativos, semKits]);
 
   function escolher(p: Produto) {
     aoEscolher(p);
@@ -48,7 +51,7 @@ export function ProdutoBusca({
     } else if (e.key === 'Enter') {
       e.preventDefault();
       const t = normalizar(termo);
-      const exato = produtos.find((p) => p.ativo && (p.ean === termo.trim() || normalizar(p.sku) === t));
+      const exato = produtos.find((p) => p.ativo && !(semKits && p.eh_kit) && (p.ean === termo.trim() || normalizar(p.sku) === t));
       if (exato) return escolher(exato);
       if (resultados[destaque]) escolher(resultados[destaque]);
     } else if (e.key === 'Escape') {
@@ -91,6 +94,7 @@ export function ProdutoBusca({
                 }`}
               >
                 <span className="font-medium">
+                  {p.eh_kit && <span className="mr-1 rounded bg-dourado px-1.5 py-0.5 text-[10px] font-bold text-preto">KIT</span>}
                   {p.nome} {!p.ativo && <span className="text-xs text-rose-400">(inativo)</span>}
                 </span>
                 <span className="text-xs text-suave">SKU {p.sku}</span>

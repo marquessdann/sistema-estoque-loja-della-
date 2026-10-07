@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { paraEmail, SENHA_MINIMA } from '@/lib/login';
 import { supabaseAdmin, supabaseServidor } from '@/lib/supabase/server';
 
 // API de usuários: só o CEO pode criar ou alterar usuários.
@@ -41,9 +42,11 @@ export async function POST(req: Request) {
   if (!eu) return erro('Apenas o CEO pode cadastrar usuários.', 403);
   const { nome, email, senha, cargo } = await req.json();
   if (cargo !== undefined && !cargoValido(cargo)) return erro('Cargo inválido: escolha Gerente ou Funcionário.');
-  if (!nome?.trim() || !email?.trim()) return erro('Informe nome e e-mail.');
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email).trim())) return erro('E-mail inválido.');
-  if (!senha || String(senha).length < 8) return erro('A senha precisa ter pelo menos 8 caracteres.');
+  if (!nome?.trim() || !email?.trim()) return erro('Informe o nome e o usuário (login).');
+  // "antonio.gv" vira "antonio.gv@della.local"; um e-mail de verdade também é aceito
+  const emailLimpo = paraEmail(String(email));
+  if (!/^[a-z0-9][a-z0-9._-]{0,63}@[^\s@]+\.[^\s@]+$/.test(emailLimpo)) return erro('Usuário inválido: use letras minúsculas, números, ponto ou hífen.');
+  if (!senha || String(senha).length < SENHA_MINIMA) return erro(`A senha precisa ter pelo menos ${SENHA_MINIMA} caracteres.`);
 
   const admin = supabaseAdmin();
   const { count } = await admin.from('usuarios').select('id', { count: 'exact', head: true }).eq('ativo', true);
@@ -52,7 +55,6 @@ export async function POST(req: Request) {
   }
 
   // convite: o banco só aceita login novo que tenha convite do CEO
-  const emailLimpo = String(email).trim().toLowerCase();
   await admin.from('usuarios_convites').upsert({ email: emailLimpo, criado_em: new Date().toISOString() });
   const { data, error } = await admin.auth.admin.createUser({
     email: emailLimpo,
@@ -62,7 +64,7 @@ export async function POST(req: Request) {
   });
   if (error) {
     await admin.from('usuarios_convites').delete().eq('email', emailLimpo);
-    if (/already been registered|already exists/i.test(error.message)) return erro('Já existe um usuário com este e-mail.');
+    if (/already been registered|already exists/i.test(error.message)) return erro('Já existe alguém com este usuário.');
     if (/Database error/i.test(error.message))
       return erro('O banco recusou o cadastro (limite de 3 usuários ativos ou e-mail já usado). Confira e tente de novo.');
     return erro(error.message);
@@ -101,7 +103,7 @@ export async function PATCH(req: Request) {
 
   const mudancasLogin: { password?: string; ban_duration?: string; user_metadata?: object } = {};
   if (senha) {
-    if (String(senha).length < 8) return erro('A senha precisa ter pelo menos 8 caracteres.');
+    if (String(senha).length < SENHA_MINIMA) return erro(`A senha precisa ter pelo menos ${SENHA_MINIMA} caracteres.`);
     mudancasLogin.password = String(senha);
   }
   // usuário desativado fica bloqueado no login

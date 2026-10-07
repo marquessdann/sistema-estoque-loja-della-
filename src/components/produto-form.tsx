@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { urlFoto, useDados } from '@/lib/dados';
 import { mensagemErro } from '@/lib/erros';
-import { eanValido, estoqueNaLoja, lerNumero, normalizar, UNIDADES } from '@/lib/formato';
+import { eanValido, estoqueNaLoja, lerNumero, normalizar, ORIGENS_FISCAIS, UNIDADES } from '@/lib/formato';
 import { supabaseNavegador } from '@/lib/supabase/client';
 import type { Produto } from '@/lib/tipos';
 import { LojaTag } from './loja';
@@ -28,6 +28,10 @@ export function ProdutoForm({ produto, base, somenteLeitura = false }: { produto
   const [venda, setVenda] = useState(origem ? String(origem.preco_venda).replace('.', ',') : '');
   const [obs, setObs] = useState(origem?.observacoes ?? '');
   const [mlb, setMlb] = useState(produto?.ml_item_id ?? '');
+  const [codFornecedor, setCodFornecedor] = useState(origem?.codigo_fornecedor ?? '');
+  const [ncm, setNcm] = useState(origem?.ncm ?? '');
+  const [cest, setCest] = useState(origem?.cest ?? '');
+  const [origemFiscal, setOrigemFiscal] = useState(origem?.origem_fiscal != null ? String(origem.origem_fiscal) : '');
   const [minimos, setMinimos] = useState<Record<number, string>>(
     Object.fromEntries(lojas.map((l) => [l.id, origem ? String(estoqueNaLoja(origem, l.id).estoque_minimo) : '0'])),
   );
@@ -45,6 +49,9 @@ export function ProdutoForm({ produto, base, somenteLeitura = false }: { produto
   const eanLimpo = ean.replace(/\s/g, '');
   const erroEan = eanLimpo && !eanValido(eanLimpo) ? 'Código inválido: só números, e confira o último dígito' : null;
   const erroSku = sku.trim() && !/^[A-Za-z0-9][A-Za-z0-9._/-]{0,39}$/.test(sku.trim()) ? 'Use só letras, números, ponto, hífen ou barra' : null;
+  const digitos = (t: string) => t.replace(/\D/g, '');
+  const erroNcm = ncm.trim() && digitos(ncm).length !== 8 ? 'O NCM tem 8 números (ex.: 8203.20.90)' : null;
+  const erroCest = cest.trim() && digitos(cest).length !== 7 ? 'O CEST tem 7 números (ex.: 20.053.00)' : null;
   const erroMinimo = Object.values(minimos).some((v) => v !== '' && (Number(v) < 0 || !Number.isInteger(Number(v))))
     ? 'O mínimo deve ser um número inteiro (zero ou mais)'
     : null;
@@ -58,7 +65,7 @@ export function ProdutoForm({ produto, base, somenteLeitura = false }: { produto
     e.preventDefault();
     setTentou(true);
     if (somenteLeitura) return;
-    if (!nome.trim() || erroCusto || erroVenda || erroEan || erroSku || erroMinimo) return toast.error('Confira os campos destacados.');
+    if (!nome.trim() || erroCusto || erroVenda || erroEan || erroSku || erroMinimo || erroNcm || erroCest) return toast.error('Confira os campos destacados.');
     setOcupado(true);
     try {
       const sb = supabaseNavegador();
@@ -83,6 +90,10 @@ export function ProdutoForm({ produto, base, somenteLeitura = false }: { produto
           foto_path: caminhoFoto,
           observacoes: obs,
           ml_item_id: mlb,
+          codigo_fornecedor: codFornecedor,
+          ncm,
+          cest,
+          origem_fiscal: origemFiscal,
           minimos: Object.fromEntries(Object.entries(minimos).map(([k, v]) => [k, Math.max(0, Math.floor(Number(v) || 0))])),
         },
       });
@@ -201,6 +212,29 @@ export function ProdutoForm({ produto, base, somenteLeitura = false }: { produto
         </Campo>
       </div>
 
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <Campo rotulo="Cód. do fornecedor" dica="Como aparece na nota">
+          <input className="campo" value={codFornecedor} onChange={(e) => setCodFornecedor(e.target.value)} placeholder="Ex.: 2311.303" />
+        </Campo>
+        <Campo rotulo="NCM" erro={erroNcm}>
+          <input className="campo tabular" inputMode="numeric" value={ncm} onChange={(e) => setNcm(e.target.value)} placeholder="8203.20.90" />
+        </Campo>
+        <Campo rotulo="CEST" erro={erroCest}>
+          <input className="campo tabular" inputMode="numeric" value={cest} onChange={(e) => setCest(e.target.value)} placeholder="20.053.00" />
+        </Campo>
+        <Campo rotulo="Origem">
+          <select className="campo" value={origemFiscal} onChange={(e) => setOrigemFiscal(e.target.value)}>
+            <option value="">—</option>
+            {ORIGENS_FISCAIS.map((o) => (
+              <option key={o.valor} value={o.valor}>
+                {o.rotulo}
+              </option>
+            ))}
+          </select>
+        </Campo>
+      </div>
+
+      {!origem?.eh_kit && (
       <div>
         <span className="rotulo">Estoque mínimo por loja</span>
         <p className="mb-2 text-xs text-neutral-500">Quando o saldo ficar abaixo deste número, o sistema mostra um alerta.</p>
@@ -221,6 +255,7 @@ export function ProdutoForm({ produto, base, somenteLeitura = false }: { produto
           ))}
         </div>
       </div>
+      )}
 
       <Campo rotulo="Observações">
         <textarea className="campo min-h-[80px]" value={obs} onChange={(e) => setObs(e.target.value)} />

@@ -21,6 +21,9 @@ interface LinhaImport {
   preco_custo: number | null;
   preco_venda: number | null;
   observacoes: string;
+  codigo_fornecedor: string;
+  ncm: string;
+  cest: string;
   minimos: Record<string, number>;
   erros: string[];
 }
@@ -42,6 +45,9 @@ export default function ImportarProdutos() {
     { titulo: 'Unidade', valor: (p) => p.unidade, largura: 9 },
     { titulo: 'Preço de custo', valor: (p) => p.preco_custo, formato: 'moeda', largura: 14 },
     { titulo: 'Preço de venda', valor: (p) => p.preco_venda, formato: 'moeda', largura: 14 },
+    { titulo: 'Cód. fornecedor', valor: (p) => p.codigo_fornecedor ?? '', largura: 16 },
+    { titulo: 'NCM', valor: (p) => p.ncm ?? '', largura: 11 },
+    { titulo: 'CEST', valor: (p) => p.cest ?? '', largura: 10 },
     ...lojas.map<Coluna<Produto>>((l) => ({
       titulo: `Mínimo ${l.nome}`,
       valor: (p) => estoqueNaLoja(p, l.id).estoque_minimo,
@@ -74,6 +80,12 @@ export default function ImportarProdutos() {
     observacoes: 'SKU vazio = gerado automaticamente',
     ativo: true,
     ml_item_id: null,
+    codigo_fornecedor: '2311.303',
+    ncm: '82032090',
+    cest: '2005300',
+    origem_fiscal: 0,
+    eh_kit: false,
+    kit: [],
     criado_em: '',
     atualizado_em: '',
     estoques: lojas.map((l) => ({ loja_id: l.id, saldo: 0, estoque_minimo: 5 })),
@@ -106,6 +118,10 @@ export default function ImportarProdutos() {
         const preco_custo = lerNumero(custoTxt);
         const preco_venda = lerNumero(vendaTxt);
         if (custoTxt && preco_custo === null) erros.push('Custo inválido');
+        const ncmTxt = pegar(l, 'NCM').replace(/\D/g, '');
+        if (ncmTxt && ncmTxt.length !== 8) erros.push('NCM deve ter 8 números');
+        const cestTxt = pegar(l, 'CEST').replace(/\D/g, '');
+        if (cestTxt && cestTxt.length !== 7) erros.push('CEST deve ter 7 números');
         if (vendaTxt && preco_venda === null) erros.push('Venda inválida');
         const minimos: Record<string, number> = {};
         for (const loja of lojas) {
@@ -126,6 +142,9 @@ export default function ImportarProdutos() {
           preco_custo,
           preco_venda,
           observacoes: pegar(l, 'Observações', 'Observacoes', 'Obs'),
+          codigo_fornecedor: pegar(l, 'Cód. fornecedor', 'Cod. fornecedor', 'Código do fornecedor'),
+          ncm: pegar(l, 'NCM').replace(/\D/g, ''),
+          cest: pegar(l, 'CEST').replace(/\D/g, ''),
           minimos,
           erros,
         };
@@ -162,6 +181,10 @@ export default function ImportarProdutos() {
         preco_custo: l.preco_custo ?? atual.preco_custo,
         preco_venda: l.preco_venda ?? atual.preco_venda,
         observacoes: l.observacoes || atual.observacoes || '',
+        codigo_fornecedor: l.codigo_fornecedor || atual.codigo_fornecedor || '',
+        ncm: l.ncm || atual.ncm || '',
+        cest: l.cest || atual.cest || '',
+        origem_fiscal: atual.origem_fiscal ?? '',
         foto_path: atual.foto_path,
         ml_item_id: atual.ml_item_id,
       };

@@ -6,6 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { LojaTag } from '@/components/loja';
+import { KitComposicao } from '@/components/kit-composicao';
 import { DetalheOperacao } from '@/components/operacoes';
 import { ProdutoForm } from '@/components/produto-form';
 import { Carregando, Confirmar, TipoBadge, Titulo, Vazio } from '@/components/ui';
@@ -84,6 +85,7 @@ export default function DetalheProduto() {
           <>
             SKU {produto.sku}
             {produto.ean && ` · EAN ${produto.ean}`}
+            {produto.eh_kit && <span className="ml-2 rounded bg-dourado px-1.5 py-0.5 text-xs font-bold text-preto">KIT</span>}
             {!produto.ativo && <span className="ml-2 font-semibold text-rose-400">INATIVO</span>}
           </>
         }
@@ -101,7 +103,7 @@ export default function DetalheProduto() {
               <div className="flex items-center justify-between">
                 <div>
                   <LojaTag loja={l} />
-                  <div className="mt-1 text-xs text-suave">mínimo {e.estoque_minimo}</div>
+                  <div className="mt-1 text-xs text-suave">{produto.eh_kit ? 'kits que dá para montar' : `mínimo ${e.estoque_minimo}`}</div>
                 </div>
                 <div className={`font-titulo text-4xl font-bold tabular ${baixo ? 'text-rose-400' : ''}`}>{e.saldo}</div>
               </div>
@@ -109,6 +111,8 @@ export default function DetalheProduto() {
           );
         })}
       </div>
+      <KitComposicao produto={produto} />
+
       <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-suave">
         <span>
           Total nas lojas: <b className="text-white">{lojas.reduce((s, l) => s + estoqueNaLoja(produto, l.id).saldo, 0)}</b> {produto.unidade}
@@ -124,7 +128,7 @@ export default function DetalheProduto() {
             <ArrowLeftRight className="h-4 w-4" /> Transferir
           </Link>
         )}
-        {produto.ativo && pode('entrada') && (
+        {produto.ativo && !produto.eh_kit && pode('entrada') && (
           <Link href={`/entrada?produto=${produto.id}`} className="btn-secundario">
             <PackagePlus className="h-4 w-4" /> Entrada
           </Link>

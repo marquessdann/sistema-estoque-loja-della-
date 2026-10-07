@@ -38,7 +38,7 @@ body {
     @apply btn bg-rose-600 text-white hover:bg-rose-500;
   }
   .btn-fantasma {
-    @apply btn min-h-0 px-2 py-1 text-neutral-300 hover:bg-white/5 hover:text-white;
+    @apply btn min-h-[40px] min-w-[40px] justify-center px-2 py-1 text-neutral-300 hover:bg-white/5 hover:text-white;
   }
   .cartao {
     @apply rounded-xl border border-borda bg-painel p-4 sm:p-5;

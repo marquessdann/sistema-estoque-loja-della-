@@ -1,6 +1,6 @@
 -- =====================================================================
 -- Bateria de testes automáticos das regras do banco (estoque e permissões).
--- Roda num banco de TESTE já com 01 + 03 + 04 + 02 aplicados (nunca em produção).
+-- Roda num banco de TESTE já com 01 + 03 + 04 + 05 + 02 aplicados (nunca em produção).
 -- Usuários de teste: admin = CEO, op1 = GERENTE, op2 = FUNCIONÁRIO.
 -- Cada linha "OK"/"FALHOU" mostra o resultado; ao final, um resumo.
 -- =====================================================================
@@ -337,6 +337,49 @@ select pg_temp.espera_erro('Entrada com data e hora inválidas',
   format($$select registrar_entrada('{"loja_id":%s,"data_hora":"ontem cedo","itens":[{"produto_id":%s,"quantidade":1}]}')$$, pg_temp.lid('ESTOQUE'), pg_temp.pid('TES-CUT')), 'inválidas');
 select pg_temp.espera_erro('Número do pedido gigante é bloqueado',
   format($$select registrar_entrada('{"loja_id":%s,"numero_pedido":"%s","itens":[{"produto_id":%s,"quantidade":1}]}')$$, pg_temp.lid('ESTOQUE'), repeat('9', 61), pg_temp.pid('TES-CUT')), 'muito longo');
+
+-- ===================== KITS E DADOS FISCAIS =====================
+select pg_temp.como('op1@teste.com');   -- gerente monta o kit
+select pg_temp.no_estoque('op1@teste.com', 'ESTOQUE');
+select salvar_produto('{"nome":"Kit Teste 3 Pinças","sku":"KIT-TESTE","unidade":"KIT"}') as kit \gset
+select salvar_kit(:kit, format('[{"produto_id":%s,"quantidade":1},{"produto_id":%s,"quantidade":2}]', pg_temp.pid('PIN-FINA'), pg_temp.pid('PIN-RETA'))::jsonb);
+select pg_temp.checar('Gerente monta kit com 2 componentes', (select eh_kit from produtos where id = :kit) and (select count(*) from kit_itens where kit_id = :kit) = 2);
+select pg_temp.espera_erro('Produto com estoque não vira kit',
+  format($$select salvar_kit(%s, '[{"produto_id":%s,"quantidade":1}]')$$, pg_temp.pid('PIN-FINA'), pg_temp.pid('PIN-RETA')), 'não pode virar kit');
+select pg_temp.espera_erro('Kit não pode ter outro kit como componente',
+  format($$select salvar_kit(%s, '[{"produto_id":%s,"quantidade":1}]')$$, (select salvar_produto('{"nome":"Kit B","sku":"KIT-B"}')), :kit), 'Componente inválido');
+select pg_temp.espera_erro('Kit não recebe entrada (não tem estoque próprio)',
+  format($$select registrar_entrada('{"loja_id":%s,"itens":[{"produto_id":%s,"quantidade":1}]}')$$, pg_temp.lid('ESTOQUE'), :kit), 'Kit não tem estoque próprio');
+select pg_temp.como('op2@teste.com');
+select pg_temp.espera_erro('Funcionário não monta kit', format($$select salvar_kit(%s, '[]')$$, :kit), 'Sem permissão');
+select pg_temp.no_estoque('op2@teste.com', 'ESTOQUE');
+select pg_temp.saldo('PIN-FINA', 'ESTOQUE') as kf \gset
+select pg_temp.saldo('PIN-RETA', 'ESTOQUE') as kr \gset
+select registrar_saida(format('{"loja_id":%s,"motivo":"venda","numero_pedido":"ML-KIT-1","plataforma":"mercado_livre","itens":[{"produto_id":%s,"quantidade":2}]}',
+       pg_temp.lid('ESTOQUE'), :kit)::jsonb) as vkit \gset
+select pg_temp.checar('Baixa de 2 kits tira 2 x 1 e 2 x 2 dos componentes',
+  pg_temp.saldo('PIN-FINA', 'ESTOQUE') = :kf - 2 and pg_temp.saldo('PIN-RETA', 'ESTOQUE') = :kr - 4);
+select pg_temp.checar('O lançamento anota qual kit saiu', (select observacao like 'Kit: Kit Teste 3 Pinças x2%' from operacoes where id = :vkit));
+select pg_temp.checar('Kit nunca ganha saldo próprio', not exists (select 1 from produto_loja where produto_id = :kit and saldo <> 0));
+select pg_temp.espera_erro('Kit sem componentes suficientes é bloqueado',
+  format($$select registrar_saida('{"loja_id":%s,"motivo":"venda","numero_pedido":"1","plataforma":"tiktok_shop","itens":[{"produto_id":%s,"quantidade":9999}]}')$$, pg_temp.lid('ESTOQUE'), :kit), 'insuficiente');
+select registrar_transferencia(format('{"origem_id":%s,"destino_id":%s,"itens":[{"produto_id":%s,"quantidade":1}]}',
+       pg_temp.lid('ESTOQUE'), pg_temp.lid('FULL_ML'), :kit)::jsonb);
+select pg_temp.checar('Transferir 1 kit leva os componentes para o outro estoque',
+  pg_temp.saldo('PIN-FINA', 'ESTOQUE') = :kf - 3 and pg_temp.saldo('PIN-RETA', 'ESTOQUE') = :kr - 6);
+select pg_temp.como('op1@teste.com');
+select estornar_operacao(:vkit, 'Pedido cancelado');
+select pg_temp.checar('Estorno da baixa do kit devolve os componentes',
+  pg_temp.saldo('PIN-FINA', 'ESTOQUE') = :kf - 1 and pg_temp.saldo('PIN-RETA', 'ESTOQUE') = :kr - 2);
+select salvar_produto('{"nome":"Produto Fiscal","sku":"FISC-1","ncm":"8203.20.90","cest":"20.053.00","origem_fiscal":"2","codigo_fornecedor":"2311.303"}') as pf \gset
+select pg_temp.checar('NCM e CEST gravados só com números; origem e código do fornecedor',
+  (select ncm = '82032090' and cest = '2005300' and origem_fiscal = 2 and codigo_fornecedor = '2311.303' from produtos where id = :pf));
+select salvar_produto(format('{"id":%s,"nome":"Produto Fiscal 2"}', :pf)::jsonb);
+select pg_temp.checar('Editar sem mandar o NCM não apaga o NCM', (select ncm = '82032090' and nome = 'Produto Fiscal 2' from produtos where id = :pf));
+select pg_temp.espera_erro('NCM com tamanho errado é bloqueado', $$select salvar_produto('{"nome":"X","ncm":"123"}')$$, 'NCM inválido');
+select pg_temp.espera_erro('CEST com tamanho errado é bloqueado', $$select salvar_produto('{"nome":"X","cest":"12"}')$$, 'CEST inválido');
+select pg_temp.no_estoque('op1@teste.com', 'ESTOQUE');
+select pg_temp.no_estoque('op2@teste.com', 'ESTOQUE');
 
 -- ===================== HISTÓRICO (visibilidade) =====================
 select pg_temp.como('op2@teste.com');

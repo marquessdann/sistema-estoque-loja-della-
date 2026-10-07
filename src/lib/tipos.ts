@@ -61,9 +61,21 @@ export interface Produto {
   observacoes: string | null;
   ativo: boolean;
   ml_item_id: string | null;
+  codigo_fornecedor: string | null;
+  ncm: string | null;
+  cest: string | null;
+  origem_fiscal: number | null;
+  /** kit: não tem estoque próprio; o saldo mostrado é quantos kits dá para montar */
+  eh_kit: boolean;
+  kit: KitItem[];
   criado_em: string;
   atualizado_em: string;
   estoques: Estoque[];
+}
+
+export interface KitItem {
+  produto_id: number;
+  quantidade: number;
 }
 
 export interface Cadastro {

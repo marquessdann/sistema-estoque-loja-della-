@@ -2,10 +2,10 @@
 
 ## Antes de tudo: entrar no estoque
 
-Depois de entrar com seu e-mail e senha, o sistema pergunta **"Em qual estoque você vai trabalhar?"**:
+Na tela de login, digite o seu **usuário** (ex.: `daniel`, `vinicius`, `antonio.gv`) e a sua senha. Depois, o sistema pergunta **"Em qual estoque você vai trabalhar?"**:
 
 1. Toque em **DELLA ESTOQUE** ou **DELLA FULL ML**.
-2. Digite a **senha do estoque**. A senha padrão é `Galaxys2!`, e o administrador pode trocá-la em **Configurações**.
+2. Digite a **senha do estoque**. A senha padrão é `Galaxys2!`, e o CEO pode trocá-la em **Configurações**.
 3. Pronto: uma **faixa colorida no topo** mostra em qual estoque você está.
 
 Tudo o que você lançar (entrada, saída, inventário, transferência) acontece **dentro desse estoque**. Para trabalhar no outro, use o botão **Trocar de estoque**, na faixa do topo. Ele pede a senha do outro estoque.
@@ -36,6 +36,7 @@ Tudo fica registrado com data, hora e o nome de quem fez.
 2. Preencha o **Nome**, que é o único campo obrigatório. Os demais, se quiser:
    - **SKU:** deixe vazio e o sistema gera um código (`DELLA-00001`).
    - **Código de barras (EAN):** pode bipar com o leitor.
+   - **Cód. do fornecedor, NCM, CEST e Origem** (dados fiscais).
    - **Categoria / Marca:** escolha da lista ou digite uma nova.
    - **Preço de custo e de venda.**
    - **Estoque mínimo** de cada loja: abaixo disso, o sistema avisa.
@@ -47,6 +48,16 @@ Na tela do produto você também pode:
 - **Inativar:** o produto some das buscas, mas o histórico fica. Produto com histórico **nunca** é apagado.
 - **Transferir / Entrada / Saída:** atalhos rápidos.
 - Ver o **histórico** de tudo o que aconteceu com ele.
+
+**Kits (ex.: Kit 3 Pinças):**
+1. Cadastre o kit como um produto novo (unidade **KIT**).
+2. Na tela dele, clique em **Transformar em kit** e adicione os produtos que formam o kit, com a quantidade de cada um.
+3. Clique em **Salvar composição**.
+
+O kit não tem estoque próprio:
+- a tela mostra **quantos kits dá para montar**, limitado pelo componente que acabar primeiro;
+- ao dar baixa em 1 kit (ou transferir), o sistema tira cada componente do estoque;
+- kit não recebe entrada nem inventário: lance os componentes.
 
 **Muitos produtos de uma vez:**
 1. Vá em **Produtos > Importar / Exportar** e baixe a **planilha modelo**.
@@ -75,7 +86,12 @@ O XML fica anexado à nota automaticamente.
 
 ### Sem XML (digitando)
 
-1. Menu **Entrada** (a mercadoria entra no estoque em que você está): escolha o motivo **Compra**.
+1. Menu **Entrada** (a mercadoria entra no estoque em que você está). No topo, preencha:
+   - **Número do pedido** (pedido de compra ao fornecedor);
+   - **Número da NF que entrou**;
+   - **Data e hora** em que a mercadoria chegou.
+
+   Depois escolha o motivo **Compra**.
 2. Abra **Nota fiscal** e preencha:
    - **número**, **série**, **data**, **fornecedor** e **CNPJ**;
    - a **chave de acesso** (44 dígitos, o sistema confere se está certa);
@@ -108,7 +124,7 @@ A mercadoria **sempre sai do estoque em que você está** e entra no outro **na 
 
 A transferência é **tudo ou nada**: sai de uma loja e entra na outra ao mesmo tempo.
 
-**Errou?** Quem tem permissão de estornar entra no estoque de **destino** (de onde a mercadoria vai sair de volta) e usa **Estornar** na tela da transferência.
+**Errou?** O CEO ou o gerente entra no estoque de **destino** (de onde a mercadoria vai sair de volta) e usa **Estornar** na tela da transferência.
 
 **Histórico:** menu **Histórico de transferências**, mostrando o que "saiu daqui" e o que "entrou aqui", com quem fez e quando.
 
@@ -132,14 +148,26 @@ Só as diferenças são lançadas.
 
 ---
 
-## 5. Saída (venda, perda, avaria, uso interno)
+## 5. Saída (baixa de pedidos)
 
-1. Menu **Saída**.
-2. Escolha o motivo (a saída é do estoque em que você está).
-3. Adicione os produtos e as quantidades.
-4. Clique em **Registrar saída** e confirme.
+A **Saída** é a mercadoria indo para as **lojas** (pedidos de clientes). Mandar mercadoria de um estoque para o outro é **Transferir** (item 3).
 
-As vendas do Mercado Livre Full saem da loja **DELLA FULL ML**.
+**Pedido (venda):**
+1. Menu **Saída (pedidos)** e aba **Pedido (venda)**.
+2. **Qual plataforma?**
+   - no **DELLA ESTOQUE**: toque em **Mercado Livre** ou **TikTok Shop**;
+   - no **DELLA FULL ML**: é sempre **Mercado Livre** (não precisa escolher).
+3. Preencha:
+   - **Número do pedido** (obrigatório);
+   - **Número da NF**;
+   - **Nome do cliente**;
+   - **Data e hora** (já vem com agora).
+4. Adicione os produtos ou kits e as quantidades.
+5. Clique em **Dar baixa do pedido** e confirme.
+
+**Outra saída** (perda, avaria, uso interno, devolução ao fornecedor): use a segunda aba e escolha o motivo.
+
+Para achar depois: **Movimentações** tem filtros por **Nº do pedido**, **Nº da nota** e **Plataforma**. Em **Relatórios**, dá para filtrar por plataforma e exportar com pedido, NF e cliente.
 
 ---
 
@@ -170,37 +198,51 @@ As telas se atualizam **sozinhas**: se outra pessoa lançar algo, você vê na h
 
 ---
 
-## 8. Usuários e permissões (só o Administrador)
+## 8. Usuários e cargos (só o CEO)
 
-- Limite de **3 usuários ativos** (1 administrador e 2 operadores).
-- **Administrador:** faz tudo, inclusive usuários, lojas, **senhas dos estoques**, configurações, inativar/excluir produtos, **Log de atividades** e exportar todos os dados.
-- Exemplo de equipe: **Daniel (ADM)**, **Vinicius (ADM)** e **Antonio (Operador)**.
-- **Operador:** faz só o que estiver marcado para ele em **Usuários e permissões > Editar**:
+Limite de **3 usuários ativos**. Não existem caixinhas de permissão: cada pessoa tem um **cargo**.
 
-| Permissão | O que libera | Padrão |
+| Usuário (login) | Pessoa | Cargo |
 |---|---|---|
-| Registrar entradas | Compras, notas, XML | ✅ |
-| Registrar saídas | Venda, perda, avaria... | ✅ |
-| Transferir entre lojas | Mover mercadoria a partir do estoque em que está | ✅ |
-| Inventário | Ajuste pela contagem | ✅ |
-| Estornar lançamentos | Desfazer lançamentos | ❌ |
-| Cadastrar e editar produtos | Produtos, categorias, importar planilha | ❌ |
-| Ver relatórios | Relatórios e exportações | ✅ |
-| Ver histórico de todos | Sem ela, vê só o que ele mesmo lançou | ✅ |
+| `daniel` | Daniel | **CEO** |
+| `vinicius` | Vinicius | **Gerente** |
+| `antonio.gv` | Antonio | **Funcionário** |
 
-- As permissões são conferidas pelo **banco de dados**: mesmo que alguém tente "burlar" pela tela ou por chamada direta, o banco recusa.
-- Para trocar alguém: em **Editar**, desmarque **Usuário ativo** e depois crie o novo.
-- Esqueceu a senha? **Esqueci minha senha** no login, ou peça ao administrador uma nova senha em **Editar**.
+| O que pode fazer | CEO | Gerente | Funcionário |
+|---|---|---|---|
+| Entrar nos estoques (com a senha do estoque) | ✅ | ✅ | ✅ |
+| Dar baixa (saída / pedidos) | ✅ | ✅ | ✅ |
+| Transferir entre estoques | ✅ | ✅ | ✅ |
+| Entrada, inventário | ✅ | ✅ | ❌ |
+| Cadastrar e editar produtos e kits, inativar | ✅ | ✅ | ❌ (só consulta) |
+| Estornar (autorizar correções) | ✅ | ✅ | ❌ |
+| Ver lançamentos de todos, relatórios, Log de atividades | ✅ | ✅ | ❌ (vê só o que ele lançou) |
+| Usuários, senhas dos estoques, lojas, configurações, excluir produto | ✅ | ❌ | ❌ |
+
+- Os cargos são conferidos pelo **banco de dados**: mesmo que alguém tente "burlar" pela tela ou por chamada direta, o banco recusa.
+- **Criar um usuário:** **Usuários > Novo usuário**. Preencha o nome, o **usuário** (letras minúsculas, sem espaço, ex.: `antonio.gv`), o cargo e a senha (mínimo de 6 caracteres).
+- **Trocar alguém:** em **Editar**, desmarque **Usuário ativo** e depois crie o novo.
+- **Esqueceu a senha?** O CEO coloca uma nova em **Usuários > Editar**.
 - Cada pessoa pode trocar a própria senha em **Senha**, no rodapé do menu.
 
-## 9. Log de atividades (só o Administrador)
+## 9. Log de atividades (CEO e gerente)
 
 Menu **Log de atividades**: uma lista de **quem fez cada mudança**, por exemplo:
-- "Antonio · Operador · Transferência · DELLA FULL ML → DELLA ESTOQUE · Navalha +2";
-- "Daniel · ADM · Entrou no estoque · DELLA ESTOQUE";
+- "Antonio · Funcionário · Baixa (saída) · DELLA ESTOQUE · TikTok Shop · Pedido 5501 · Cliente Maria";
+- "Antonio · Funcionário · Transferência · DELLA FULL ML → DELLA ESTOQUE · Navalha +2";
+- "Daniel · CEO · Entrou no estoque · DELLA ESTOQUE";
 - "Antonio · Errou a senha do estoque".
 
-Filtre por usuário, tipo e período e exporte em Excel. Operadores não veem esta tela, nem pela API.
+Filtre por usuário, tipo e período e exporte em Excel. O funcionário não vê esta tela, nem pela API.
+
+## No celular
+
+O sistema foi feito para funcionar bem no celular:
+- todas as telas cabem na tela, sem arrastar para o lado;
+- os botões são grandes para o dedo;
+- a barra de baixo tem **Painel, Saída, Transferir, Histórico** e **Mais**.
+
+Para usar como aplicativo: no Chrome (Android) ou no Safari (iPhone), abra o endereço do sistema e toque em **Adicionar à tela inicial**.
 
 ## 10. Outras novidades
 

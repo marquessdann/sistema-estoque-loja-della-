@@ -115,7 +115,7 @@ export function buscarProdutos(lista: Produto[], termo: string) {
   if (!t) return lista;
   const partes = t.split(/\s+/);
   return lista.filter((p) => {
-    const alvo = `${normalizar(p.nome)} ${normalizar(p.sku)} ${p.ean ?? ''}`;
+    const alvo = `${normalizar(p.nome)} ${normalizar(p.sku)} ${p.ean ?? ''} ${normalizar(p.codigo_fornecedor)}`;
     return partes.every((parte) => alvo.includes(parte));
   });
 }
@@ -170,10 +170,27 @@ export function eanValido(ean: string) {
 // Identificador único de um formulário: se o mesmo envio chegar 2 vezes, o banco não duplica
 export const novaChave = () => crypto.randomUUID();
 
+// ---------- Fiscal ----------
+export const ORIGENS_FISCAIS = [
+  { valor: 0, rotulo: '0 - Nacional' },
+  { valor: 1, rotulo: '1 - Estrangeira (importação direta)' },
+  { valor: 2, rotulo: '2 - Estrangeira (adquirida no mercado interno)' },
+  { valor: 3, rotulo: '3 - Nacional, mais de 40% importado' },
+  { valor: 4, rotulo: '4 - Nacional (processos básicos)' },
+  { valor: 5, rotulo: '5 - Nacional, até 40% importado' },
+  { valor: 6, rotulo: '6 - Estrangeira (importação direta, sem similar)' },
+  { valor: 7, rotulo: '7 - Estrangeira (mercado interno, sem similar)' },
+  { valor: 8, rotulo: '8 - Nacional, mais de 70% importado' },
+];
+export const formatarNCM = (n: string | null | undefined) =>
+  n && n.length === 8 ? `${n.slice(0, 4)}.${n.slice(4, 6)}.${n.slice(6)}` : (n ?? '');
+export const formatarCEST = (c: string | null | undefined) =>
+  c && c.length === 7 ? `${c.slice(0, 2)}.${c.slice(2, 5)}.${c.slice(5)}` : (c ?? '');
+
 // ---------- Cargos ----------
 // Mesma regra do banco (tem_permissao): o banco confere de novo em toda gravação.
 export const CARGOS: Record<Cargo, { rotulo: string; cor: string; descricao: string }> = {
-  ceo: { rotulo: 'CEO', cor: 'bg-della-azul text-white', descricao: 'Tudo: usuários, senhas dos estoques, lojas e configurações.' },
+  ceo: { rotulo: 'CEO', cor: 'bg-blue-600 text-white', descricao: 'Tudo: usuários, senhas dos estoques, lojas e configurações.' },
   gerente: {
     rotulo: 'Gerente',
     cor: 'bg-amber-100 text-amber-900',

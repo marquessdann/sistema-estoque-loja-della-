@@ -12,6 +12,39 @@ Nada foi marcado como funcionando sem ter sido **executado**, conferido **no ban
 > - cada estoque tem seu painel, e mover mercadoria só acontece **a partir do estoque em que se está**, com confirmação reforçada;
 > - usuários: **Daniel (ADM)**, **Vinicius (ADM)** e **Antonio (Operador)**.
 
+## Atualização 3 (07/10/2026) — cargos, pedidos, kits e produtos reais
+
+Pedidos aplicados nesta rodada (detalhe item por item em [`CHECKLIST.md`](CHECKLIST.md)):
+- **Cargos fixos** no lugar das caixinhas de permissão (`04_cargos_e_baixa.sql`):
+  - **Daniel = CEO** (tudo);
+  - **Vinicius = Gerente** (autoriza, sem usuários, senhas dos estoques, lojas e configurações);
+  - **Antonio = Funcionário** (baixa e transferência; vê só o que lançou).
+- **Login por usuário:** `daniel`, `vinicius`, `antonio.gv`. Por dentro, cada um é `usuario@della.local`. Senha mínima de 6 caracteres.
+- **Entrada:** nº do pedido, nº da NF que entrou, data e hora.
+- **Saída = para as lojas.** Pedido com nº do pedido (obrigatório), NF, cliente, data e hora. No DELLA ESTOQUE, **"Qual plataforma?"** (Mercado Livre / TikTok Shop); no FULL, sempre Mercado Livre. **Transferência = entre estoques.**
+- **Kits** e dados fiscais (NCM, CEST, origem, código do fornecedor) (`05_kits_e_fiscal.sql`).
+- **Produtos reais** da DELLA (`06_produtos_della.sql`):
+  - 49 produtos e 4 kits;
+  - histórico das notas 16.653 e 46.780 e dos pedidos 3108 e 3136, com as vendas do ML;
+  - **saldos idênticos à planilha** (2.460 unidades).
+- **Celular:** 16 telas sem rolagem lateral em 375px e botões de pelo menos 40px.
+
+Problemas encontrados e corrigidos nesta rodada:
+- **Data e hora:** a hora digitada era lida no fuso do servidor. Agora vai com o fuso do aparelho.
+- **Painel no celular:** o valor do estoque passava da borda do cartão.
+- **Custo do kit:** aparecia R$ 0,00; agora é a soma dos componentes.
+- **Botões pequenos para o toque:** menu, "Trocar de estoque", Renomear/Excluir e os títulos que abrem e fecham.
+- **Prévia no celular:**
+  - a tela de login ficava mais larga que o celular;
+  - o topo fixo ocupava metade da tela.
+- **Log:** mostrava "venda" cru; agora mostra plataforma, pedido, cliente e NF.
+
+Resultados depois da última mudança, num banco limpo:
+- **139/139** regras do banco;
+- **44/44** ataques à API bloqueados (funcionário e gerente);
+- **20/20** cenários no navegador, com os usuários e senhas reais;
+- **21/21** verificações com os produtos reais no celular.
+
 ---
 
 ## A. Resumo
@@ -160,30 +193,26 @@ Legenda: ✅ Funcionando · 🔒 Bloqueado corretamente · ⚠️ Pendente/melho
 
 ---
 
-## C. Matriz de permissões
+## C. Matriz de permissões (cargos, versão atual)
 
-| Funcionalidade | Administrador | Operador |
-|---|---|---|
-| Entrar num estoque (com a senha do estoque) | SIM | SIM |
-| Ver produtos e estoque das duas lojas | SIM | SIM |
-| Exportar produtos | SIM | SIM |
-| Cadastrar / editar produto, categorias, importar planilha | SIM | Conforme permissão (padrão: NÃO) |
-| Inativar / excluir produto | SIM | NÃO |
-| Entrada (no estoque em que está) | SIM | Conforme permissão (padrão: SIM) |
-| Saída (no estoque em que está) | SIM | Conforme permissão (padrão: SIM) |
-| Transferir (só a partir do estoque em que está) | SIM | Conforme permissão (padrão: SIM) |
-| Inventário (no estoque em que está) | SIM | Conforme permissão (padrão: SIM) |
-| Estornar | SIM | Conforme permissão (padrão: NÃO) |
-| Relatórios | SIM | Conforme permissão (padrão: SIM) |
-| Histórico de todos | SIM | Conforme permissão (padrão: SIM; desligado = só os próprios) |
-| **Log de atividades** | SIM | NÃO |
-| Usuários, permissões, lojas, senhas dos estoques, configurações | SIM | NÃO |
-| Apagar ou alterar histórico, alterar saldo direto | NÃO (ninguém) | NÃO (ninguém) |
+| Funcionalidade | CEO (Daniel) | Gerente (Vinicius) | Funcionário (Antonio) |
+|---|---|---|---|
+| Entrar num estoque (com a senha do estoque) | SIM | SIM | SIM |
+| Ver produtos e estoque das duas lojas | SIM | SIM | SIM |
+| Dar baixa (saída / pedidos) no estoque em que está | SIM | SIM | SIM |
+| Transferir entre estoques (só a partir do estoque em que está) | SIM | SIM | SIM |
+| Entrada, inventário | SIM | SIM | NÃO |
+| Cadastrar / editar produtos e kits, categorias, importar, inativar | SIM | SIM | NÃO (só consulta) |
+| Estornar (autorizar correções) | SIM | SIM | NÃO |
+| Ver lançamentos de todos, relatórios | SIM | SIM | NÃO (vê só os dele) |
+| **Log de atividades** | SIM | SIM | NÃO |
+| Usuários, lojas, senhas dos estoques, configurações, excluir produto, excluir categoria | SIM | NÃO | NÃO |
+| Apagar ou alterar histórico, alterar saldo direto | NÃO (ninguém) | NÃO (ninguém) | NÃO (ninguém) |
 
 **Onde cada regra é conferida:**
 1. **Na tela:** menus, botões e mensagem 🔒.
 2. **No banco de dados**, em toda função de gravação: permissão, estoque atual e regras de linha.
-3. **No servidor:** a API de usuários exige administrador.
+3. **No servidor:** a API de usuários exige o CEO.
 
 A tela é só conveniência: a proteção real está nos itens 2 e 3.
 
@@ -255,10 +284,12 @@ A tela é só conveniência: a proteção real está nos itens 2 e 3.
 
 | Bateria | Arquivo | Resultado |
 |---|---|---|
-| Regras do banco (estoque atual, senha, transferência, validações, permissões, log, integridade) | `testes/banco.sql` | **99 / 99** ✅ |
-| Ataques diretos à API, como operador com permissões padrão | `testes/api_permissoes.sh` | **33 / 33 bloqueados** 🔒 |
-| Ataques diretos à API, como operador com tudo desligado | `testes/api_permissoes.sh` | **9 / 9 bloqueados** 🔒 |
-| Ponta a ponta no navegador (Daniel no computador, Antonio no celular), conferindo o banco a cada passo | 17 cenários | **17 / 17** ✅ |
+| Regras do banco (estoque atual, senha, cargos, pedidos, plataforma, kits, NCM/CEST, transferência, validações, log, integridade) | `testes/banco.sql` | **139 / 139** ✅ |
+| Ataques diretos à API, como funcionário (Antonio) | `testes/api_permissoes.sh` | **36 / 36 bloqueados** 🔒 |
+| Ataques diretos à API, como gerente (Vinicius) | `testes/api_permissoes.sh` | **8 / 8 bloqueados** 🔒 |
+| Ponta a ponta no navegador (Daniel e Vinicius no computador, Antonio no celular), com os usuários e senhas reais, conferindo o banco a cada passo | 20 cenários | **20 / 20** ✅ |
+| Produtos reais no celular (16 telas sem rolagem lateral, botões grandes, kit, NCM, baixa de kit) | 21 verificações | **21 / 21** ✅ |
+| Carga dos produtos reais (saldos × planilha, rodar 2 vezes sem duplicar) | `06_produtos_della.sql` | **49 / 49 iguais**, sem duplicar ✅ |
 | Concorrência: duas saídas simultâneas do mesmo estoque | 2 sessões | Uma bloqueada, saldo correto ✅ |
 | Atualização v1 → v2 com dados existentes | Banco local | Sem perda ✅ |
 
@@ -273,14 +304,14 @@ Os testes pedidos, com resultado conferido no banco:
 
 Link: https://claude.ai/artifact/QcEjAqXACbnCChpZeNXwEc
 
-Roda **o mesmo banco de dados do sistema** (arquivos 01, 03 e 02, com as mesmas funções e regras) num PostgreSQL dentro do navegador. Dá para:
-- entrar como **Daniel (ADM)**, **Vinicius (ADM)** ou **Antonio (Operador)**;
+Roda **o mesmo banco de dados do sistema** (arquivos 01, 03, 04, 05 e 06, com as mesmas funções e regras e os **produtos reais**) num PostgreSQL dentro do navegador. Funciona no celular. Dá para:
+- entrar como **Daniel (CEO)**, **Vinicius (Gerente)** ou **Antonio (Funcionário)** (na prévia, basta tocar no cartão; no sistema real, entra com usuário e senha);
+- dar baixa de pedido com plataforma, pedido, NF, cliente, data e hora (inclusive de kits);
 - escolher o estoque com a senha `Galaxys2!`;
 - consultar e cadastrar produtos;
 - fazer entrada, saída e transferência, com a confirmação "Conferi";
 - estornar;
 - ver as movimentações do estoque e o Log de atividades (ADM);
-- mudar as permissões do operador;
 - rodar o **"Teste de ataque"**, que tenta burlar o banco como o usuário atual.
 
 As telas do preview são simplificadas. As telas completas são as do sistema Next.js, publicado na Vercel conforme `docs/HOSPEDAGEM.md`.
@@ -288,6 +319,9 @@ As telas do preview são simplificadas. As telas completas são as do sistema Ne
 ## H. Pendências
 
 1. **Variações de produto (pai/filho):** não implementado; cada variação é um SKU (como no Mercado Livre Full). Se quiser o agrupamento, implemento.
+1. **TikTok dentro do DELLA ESTOQUE:** feito como plataforma do pedido (um saldo só). Se quiser saldos separados para o TikTok, implemento.
+1. **Dados a conferir** na carga dos produtos reais: estão listados em [`CHECKLIST.md`](CHECKLIST.md), seção 7.
+1. **"Esqueci minha senha" por e-mail** não vale para quem entra por usuário (sem e-mail): o CEO coloca uma senha nova em Usuários.
 2. **Não testado aqui** (precisa de serviços externos reais):
    - e-mail de "Esqueci minha senha";
    - backup no GitHub Actions;

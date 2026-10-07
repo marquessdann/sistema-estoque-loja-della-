@@ -1,23 +1,24 @@
 # Testes para confirmar que tudo funciona
 
-Faça estes testes depois de publicar (de preferência com os **dados de exemplo** carregados). Marque cada um ✅.
+Faça estes testes depois de publicar. Marque cada um ✅.
 
 > Já testei todos os itens marcados com 🤖 automaticamente, num Supabase local com um navegador de verdade, antes da entrega. Mesmo assim, vale repetir no seu ambiente.
 
 ## Acesso e segurança
 - [ ] 🤖 Abrir o endereço do sistema sem estar logado leva para a tela de **login** com a logo DELLA.
-- [ ] Senha errada mostra **"E-mail ou senha incorretos."**
-- [ ] 🤖 Entrar com o administrador abre o **Painel**.
+- [ ] 🤖 Entrar com o **usuário** `daniel` (sem e-mail) e a senha dele abre a escolha do estoque.
+- [ ] 🤖 Usuário ou senha errados mostram **"Usuário ou senha incorretos."**
 - [ ] O ícone da aba do navegador (favicon) é a logo DELLA.
 - [ ] **Esqueci minha senha:** chega um e-mail, o link abre "Criar nova senha" e a nova senha funciona.
 - [ ] Na tela de login do Supabase não é possível se cadastrar sozinho (cadastro público desligado, passo 1.2).
 
-## Usuários (limite de 3)
-- [ ] 🤖 Em **Usuários**, criar 2 usuários (operadores). Aparece "3 de 3 usuários ativos".
+## Usuários e cargos (limite de 3)
+- [ ] 🤖 Em **Usuários**, criar `vinicius` (Gerente) e `antonio.gv` (Funcionário). Não há caixinhas de permissão. Aparece "3 de 3 usuários ativos".
 - [ ] 🤖 Tentar criar o 4º: aparece **"Limite de 3 usuários atingido"**.
 - [ ] Desativar um usuário: ele não consegue mais entrar. Depois disso já é possível criar outro.
-- [ ] 🤖 Entrar como **operador**: o menu **não** mostra Usuários nem Configurações.
-- [ ] Tentar tirar o perfil de administrador do único admin: o sistema não deixa.
+- [ ] 🤖 Entrar como **antonio.gv**: o menu tem Saída e Transferir, mas **não** tem Entrada, Inventário, Log, Usuários nem Configurações. Digitando o endereço, aparece 🔒.
+- [ ] 🤖 Entrar como **vinicius**: tem Log de atividades e estorna, mas **não** tem Usuários nem Configurações.
+- [ ] O cargo do CEO não pode ser trocado.
 
 ## Produtos
 - [ ] 🤖 Cadastrar um produto só com o nome: o SKU é gerado (`DELLA-00001`).
@@ -48,8 +49,12 @@ Faça estes testes depois de publicar (de preferência com os **dados de exemplo
 - [ ] 🤖 **Histórico de transferências** mostra quem fez e quando. Tocar abre os detalhes.
 - [ ] Painel: produto abaixo do mínimo no FULL com sobra no ESTOQUE mostra **"Sugestão: transferir X"**, e o botão abre a transferência preenchida.
 
-## Saída, inventário e estorno
-- [ ] 🤖 Saída por **venda** no DELLA FULL ML: o saldo diminui.
+## Saída (pedidos), inventário e estorno
+- [ ] 🤖 No **DELLA ESTOQUE**, a saída de pedido pergunta **"Qual plataforma?"** (Mercado Livre / TikTok Shop). Sem plataforma ou sem nº do pedido, não grava.
+- [ ] 🤖 No **DELLA FULL ML**, a plataforma é sempre Mercado Livre.
+- [ ] 🤖 A baixa grava nº do pedido, NF, cliente, data e hora, e aparece em Movimentações e no Log.
+- [ ] 🤖 Baixa de **1 kit** tira 1 de cada pinça do kit.
+- [ ] 🤖 Entrada grava nº do pedido, nº da NF e data e hora.
 - [ ] Saída maior que o saldo: bloqueada.
 - [ ] 🤖 Inventário: contar um produto com diferença, informar o motivo e confirmar. O saldo fica igual ao contado.
 - [ ] Inventário onde tudo bate: aparece "nenhuma diferença, nada foi alterado".
@@ -76,14 +81,21 @@ Faça estes testes depois de publicar (de preferência com os **dados de exemplo
 - [ ] 🤖 Transferir: a origem é sempre o estoque atual; o botão "Sim, mover agora" só libera depois de marcar "Conferi".
 - [ ] 🤖 No FULL, o histórico mostra só movimentações do FULL.
 - [ ] 🤖 Estorno de transferência só aparece no estoque de destino.
-- [ ] 🤖 Log de atividades (ADM) mostra quem fez cada coisa e filtra por usuário; o operador não vê o menu nem acessa pelo endereço.
-- [ ] 🤖 Admin troca a senha de um estoque em Configurações: a antiga deixa de funcionar.
-- [ ] 🤖 Operador não vê Usuários/Configurações/Log e, digitando o endereço, recebe a tela 🔒.
-- [ ] 🤖 Admin desliga "Registrar entradas" do operador: o menu some e a tela fica bloqueada.
+- [ ] 🤖 Log de atividades (CEO e gerente) mostra quem fez cada coisa, com o cargo, e filtra por usuário; o funcionário não vê o menu nem acessa pelo endereço.
+- [ ] 🤖 O CEO troca a senha de um estoque em Configurações: a antiga deixa de funcionar.
+
+## Produtos reais (arquivo 06)
+- [ ] 🤖 Depois de rodar o `06_produtos_della.sql`: 49 produtos + 4 kits, e os saldos do DELLA ESTOQUE batem com a planilha (total de 2.460 unidades).
+- [ ] 🤖 A Navalha Aço Inox Standard mostra 44; o Kit 3 Pinças Caneladas mostra 119 kits possíveis.
+- [ ] 🤖 A tela do produto mostra NCM, CEST e código do fornecedor.
+
+## Celular
+- [ ] 🤖 Nenhuma tela precisa arrastar para o lado (16 telas conferidas em 375px de largura).
+- [ ] 🤖 Os botões têm pelo menos 40px de altura.
 
 ## Testes automáticos (para técnicos)
-- `testes/banco.sql`: 99 testes das regras do banco (rode num banco de TESTE; tudo é desfeito no fim).
-- `testes/api_permissoes.sh`: 42 tentativas de burlar a API como operador (devem ser todas bloqueadas).
+- `testes/banco.sql`: 139 testes das regras do banco (rode num banco de TESTE com 01+03+04+05+02; tudo é desfeito no fim).
+- `testes/api_permissoes.sh`: 44 tentativas de burlar a API como funcionário e como gerente (devem ser todas bloqueadas).
 - Detalhes e resultados: [`docs/AUDITORIA.md`](AUDITORIA.md).
 
 ## Teste de "atomicidade" (avançado, opcional)

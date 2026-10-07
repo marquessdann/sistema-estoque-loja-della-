@@ -31,7 +31,7 @@ export default function RedefinirSenha() {
 
   async function salvar(e: React.FormEvent) {
     e.preventDefault();
-    if (senha.length < 8) return toast.error('A senha precisa ter pelo menos 8 caracteres.');
+    if (senha.length < 6) return toast.error('A senha precisa ter pelo menos 6 caracteres.');
     if (senha !== confirma) return toast.error('As senhas não conferem.');
     setOcupado(true);
     const { error } = await supabaseNavegador().auth.updateUser({ password: senha });
@@ -58,7 +58,7 @@ export default function RedefinirSenha() {
             <p className="text-sm text-suave">Validando o link...</p>
           ) : (
             <form onSubmit={salvar} className="space-y-3">
-              <Campo rotulo="Nova senha" dica="Mínimo de 8 caracteres">
+              <Campo rotulo="Nova senha" dica="Mínimo de 6 caracteres">
                 <input type="password" className="campo" value={senha} onChange={(e) => setSenha(e.target.value)} autoComplete="new-password" />
               </Campo>
               <Campo rotulo="Repita a nova senha">
