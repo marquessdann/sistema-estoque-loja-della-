@@ -25,9 +25,9 @@ export async function middleware(request: NextRequest) {
     !chave && 'NEXT_PUBLIC_SUPABASE_ANON_KEY',
   ].filter(Boolean);
   if (faltando.length) return avisoConfiguracao(`Não encontrei a(s) variável(is): <b>${faltando.join(', ')}</b>.`);
-  if (!/^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/.test(url!.trim()))
+  if (!/^https?:\/\/[^\s/]+\/?$/.test(url!.trim()))
     return avisoConfiguracao(
-      'A variável <b>NEXT_PUBLIC_SUPABASE_URL</b> está num formato estranho. Ela deve ser só o endereço, ' +
+      'A variável <b>NEXT_PUBLIC_SUPABASE_URL</b> está num formato estranho. Ela deve ser só o endereço, sem espaços, ' +
         'por exemplo <code>https://abcdefgh.supabase.co</code> (sem espaços e sem nada depois de .co).',
     );
 
