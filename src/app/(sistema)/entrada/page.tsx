@@ -11,14 +11,15 @@ import { ProdutoBusca } from '@/components/produto-busca';
 import { Campo, Confirmar, Expansivel, SemPermissao, Titulo } from '@/components/ui';
 import { useDados } from '@/lib/dados';
 import { mensagemErro } from '@/lib/erros';
-import { hojeISO, lerNumero, moeda, MOTIVOS_ENTRADA, novaChave, numero } from '@/lib/formato';
+import { agoraLocal, dataHora as fmtDataHora, lerNumero, moeda, MOTIVOS_ENTRADA, novaChave, numero } from '@/lib/formato';
 import { lerXmlNFe, type ItemNFe } from '@/lib/nfe';
 import { supabaseNavegador } from '@/lib/supabase/client';
 import { NOTA_VAZIA, type NotaForm, type Produto } from '@/lib/tipos';
 
 export default function Entrada() {
   const { lojaAtual, produtos, produtoPorId, loja, recarregar, pode } = useDados();
-  const [dataRef, setDataRef] = useState(hojeISO());
+  const [quando, setQuando] = useState(agoraLocal());
+  const [pedido, setPedido] = useState('');
   const chave = useRef(novaChave()); // evita lançar 2x se clicar duas vezes
   // sempre o estoque em que a pessoa entrou
   const lojaId = lojaAtual?.id ?? null;
@@ -130,7 +131,7 @@ export default function Entrada() {
   if (Object.keys(errosNota).length) problemas.push('Corrija os dados da nota fiscal.');
   if (pendentes.length) problemas.push('Há itens da nota ainda não vinculados a produtos.');
   if (motivo === 'outro' && !obs.trim()) problemas.push('Para o motivo "Outro", descreva na observação.');
-  if (!dataRef || dataRef > hojeISO()) problemas.push('Informe uma data válida (não pode ser no futuro).');
+  if (!quando || quando > agoraLocal()) problemas.push('Informe a data e a hora (não podem ser no futuro).');
 
   const totalItens = itens.reduce((s, i) => s + (Number(i.quantidade) || 0) * (Number(i.custo) || 0), 0);
   const valorNota = lerNumero(nota.valor_total);
@@ -151,7 +152,8 @@ export default function Entrada() {
           nota: notaPronta,
           observacao: obs,
           origem: veioDoXml ? 'xml' : 'manual',
-          data: dataRef,
+          numero_pedido: pedido,
+          data_hora: new Date(quando).toISOString(), // com o fuso do aparelho
           chave: chave.current,
         },
       });
@@ -164,6 +166,8 @@ export default function Entrada() {
       setNota(NOTA_VAZIA);
       setAnexo(null);
       setObs('');
+      setPedido('');
+      setQuando(agoraLocal());
       setPendentes([]);
       setVeioDoXml(false);
       setConfirmar(false);
@@ -190,7 +194,40 @@ export default function Entrada() {
       )}
 
       <div className="cartao space-y-4">
-        <div className="grid gap-3 sm:grid-cols-[1fr_200px]">
+        <div className="grid gap-3 sm:grid-cols-3">
+          <Campo rotulo="Número do pedido" dica="Pedido de compra ao fornecedor">
+            <input
+              className="campo"
+              name="numero_pedido"
+              value={pedido}
+              maxLength={60}
+              onChange={(e) => setPedido(e.target.value)}
+              placeholder="Ex.: PC-2026-015"
+            />
+          </Campo>
+          <Campo rotulo="Número da NF que entrou">
+            <input
+              className="campo"
+              name="numero_nf"
+              inputMode="numeric"
+              value={nota.numero}
+              maxLength={20}
+              onChange={(e) => setNota({ ...nota, numero: e.target.value })}
+              placeholder="Ex.: 45678"
+            />
+          </Campo>
+          <Campo rotulo="Data e hora" dica="Quando a mercadoria chegou" obrigatorio>
+            <input
+              type="datetime-local"
+              className="campo"
+              name="data_hora"
+              value={quando}
+              max={agoraLocal()}
+              onChange={(e) => setQuando(e.target.value)}
+            />
+          </Campo>
+        </div>
+        <div className="grid gap-3">
           <Campo rotulo="Motivo">
             <select className="campo" value={motivo} onChange={(e) => setMotivo(e.target.value)}>
               {MOTIVOS_ENTRADA.map((m) => (
@@ -200,9 +237,6 @@ export default function Entrada() {
               ))}
             </select>
           </Campo>
-          <Campo rotulo="Data da entrada" dica="Quando a mercadoria chegou">
-            <input type="date" className="campo" value={dataRef} max={hojeISO()} onChange={(e) => setDataRef(e.target.value)} />
-          </Campo>
         </div>
       </div>
 
@@ -210,7 +244,7 @@ export default function Entrada() {
         key={motivo === 'compra' ? 'nf-aberta' : 'nf-fechada'}
         titulo={
           <span>
-            Nota fiscal {nota.numero && <span className="text-dourado">nº {nota.numero}</span>}
+            Dados completos da nota {nota.numero && <span className="text-dourado">nº {nota.numero}</span>}
             {motivo !== 'compra' && <span className="ml-1 text-xs font-normal text-suave">(opcional)</span>}
           </span>
         }
@@ -293,8 +327,9 @@ export default function Entrada() {
         </p>
         <p>
           <b>{itens.length}</b> produto(s), <b>{numero(itens.reduce((s, i) => s + (Number(i.quantidade) || 0), 0))}</b> unidade(s),
-          total {moeda(totalItens)}. Data: {dataRef.split('-').reverse().join('/')}.
+          total {moeda(totalItens)}. Quando: {quando && fmtDataHora(new Date(quando).toISOString())}.
         </p>
+        {pedido.trim() && <p>Pedido nº {pedido}.</p>}
         {nota.numero ? <p>Nota fiscal nº {nota.numero}{anexo && ' (com anexo)'}.</p> : <p className="text-suave">Sem nota fiscal.</p>}
         <ul className="max-h-48 overflow-y-auto rounded-lg bg-painel2 p-2 text-xs">
           {itens.map((i) => (
@@ -341,7 +376,7 @@ function ItemPendente({
           <button
             className="btn-secundario min-h-0 py-1.5 text-xs"
             disabled={ocupado || !podeCadastrar}
-            title={podeCadastrar ? undefined : 'Sem permissão para cadastrar produtos: peça ao administrador ou vincule a um existente'}
+            title={podeCadastrar ? undefined : 'Sem permissão para cadastrar produtos: peça ao gerente ou vincule a um existente'}
             onClick={async () => {
               setOcupado(true);
               await aoCadastrar();

@@ -264,7 +264,7 @@ export function SemPermissao({ texto = 'Você não tem permissão para acessar e
     <div className="mx-auto mt-10 max-w-md rounded-xl border border-borda bg-painel p-6 text-center">
       <div className="mb-2 text-3xl">🔒</div>
       <p className="font-semibold">{texto}</p>
-      <p className="mt-1 text-sm text-suave">Se precisar, peça ao administrador para liberar em Usuários.</p>
+      <p className="mt-1 text-sm text-suave">Esta ação não faz parte do seu cargo. Se precisar, fale com o CEO ou o gerente.</p>
     </div>
   );
 }

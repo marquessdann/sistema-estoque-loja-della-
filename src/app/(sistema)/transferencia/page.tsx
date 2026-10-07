@@ -119,14 +119,14 @@ export default function Transferencia() {
         </div>
       )}
       <Titulo
-        sub="Leve produtos de uma loja para a outra. Sai de uma e entra na outra na mesma hora."
+        sub="Mercadoria indo de um estoque para o outro (DELLA ESTOQUE ⇄ DELLA FULL ML). Sai de um e entra no outro na mesma hora. Pedido de cliente é na tela Saída."
         acoes={
           <Link href="/transferencias" className="btn-secundario">
             <History className="h-4 w-4" /> Histórico
           </Link>
         }
       >
-        Transferir entre lojas
+        Transferir entre estoques
       </Titulo>
 
 

@@ -14,8 +14,8 @@ import type { Fornecedor, Loja } from '@/lib/tipos';
 import { cnpjValido, formatarCNPJ } from '@/lib/validacao';
 
 export default function Configuracoes() {
-  const { ehAdmin } = useDados();
-  if (!ehAdmin) return <Vazio>Apenas o administrador pode acessar esta tela.</Vazio>;
+  const { ehCeo } = useDados();
+  if (!ehCeo) return <Vazio>Apenas o CEO pode acessar esta tela.</Vazio>;
   return (
     <div className="space-y-5">
       <Titulo sub="Lojas, cadastros auxiliares, cópia de segurança e auditoria.">Configurações</Titulo>

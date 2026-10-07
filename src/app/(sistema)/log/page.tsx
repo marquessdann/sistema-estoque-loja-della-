@@ -8,13 +8,15 @@ import { Campo, Carregando, SemPermissao, Titulo, Vazio } from '@/components/ui'
 import { buscarTudo, useDados } from '@/lib/dados';
 import { mensagemErro } from '@/lib/erros';
 import { exportarExcel, type Coluna } from '@/lib/exportar';
-import { dataHora, fimDoDia, hojeISO, inicioDoDia } from '@/lib/formato';
+import { CARGOS, dataHora, fimDoDia, hojeISO, inicioDoDia } from '@/lib/formato';
 import { supabaseNavegador } from '@/lib/supabase/client';
-import type { RegistroLog, Usuario } from '@/lib/tipos';
+import type { Cargo, RegistroLog, Usuario } from '@/lib/tipos';
 
-// Log de atividades: SÓ o administrador vê. Mostra qual usuário fez cada mudança
+const rotuloCargo = (c: string | null) => (c && c in CARGOS ? CARGOS[c as Cargo].rotulo : '');
+
+// Log de atividades: SÓ o CEO e o gerente veem. Mostra qual usuário fez cada mudança
 // (lançamentos de estoque, cadastros, usuários, lojas e logins). O banco de dados
-// também só devolve estas linhas para administradores.
+// também só devolve estas linhas para o CEO e o gerente.
 export default function Log() {
   const { ehAdmin, versao } = useDados();
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
@@ -52,19 +54,19 @@ export default function Log() {
       });
   }, [ehAdmin, de, ate, quem, tipo, versao]);
 
-  if (!ehAdmin) return <SemPermissao texto="O log de atividades é exclusivo do administrador." />;
+  if (!ehAdmin) return <SemPermissao texto="O log de atividades é exclusivo do CEO e do gerente." />;
 
   const colunas: Coluna<RegistroLog>[] = [
     { titulo: 'Quando', valor: (r) => dataHora(r.quando), largura: 17 },
     { titulo: 'Usuário', valor: (r) => r.usuario_nome, largura: 20 },
-    { titulo: 'Perfil', valor: (r) => (r.perfil === 'admin' ? 'Administrador' : r.perfil === 'operador' ? 'Operador' : ''), largura: 13 },
+    { titulo: 'Cargo', valor: (r) => rotuloCargo(r.perfil), largura: 13 },
     { titulo: 'O que fez', valor: (r) => r.acao, largura: 24 },
     { titulo: 'Detalhe', valor: (r) => r.detalhe, largura: 70 },
   ];
 
   return (
     <div className="space-y-4">
-      <Titulo sub="Quem fez cada mudança no sistema: entradas, saídas, transferências, ajustes, estornos, cadastros e acessos. Só administradores veem esta tela.">
+      <Titulo sub="Quem fez cada mudança no sistema: entradas, saídas, transferências, ajustes, estornos, cadastros e acessos. Só o CEO e o gerente veem esta tela.">
         Log de atividades
       </Titulo>
 
@@ -74,7 +76,7 @@ export default function Log() {
             <option value="">Todos</option>
             {usuarios.map((u) => (
               <option key={u.id} value={u.id}>
-                {u.nome} ({u.perfil === 'admin' ? 'ADM' : 'Operador'})
+                {u.nome} ({rotuloCargo(u.cargo)})
               </option>
             ))}
           </select>
@@ -116,8 +118,8 @@ export default function Log() {
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
                   <b>{r.usuario_nome}</b>
                   {r.perfil && (
-                    <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold uppercase ${r.perfil === 'admin' ? 'bg-dourado text-preto' : 'bg-marinho text-white'}`}>
-                      {r.perfil === 'admin' ? 'ADM' : 'Operador'}
+                    <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold uppercase ${CARGOS[r.perfil as Cargo]?.cor ?? ''}`}>
+                      {rotuloCargo(r.perfil)}
                     </span>
                   )}
                   <span className="text-neutral-300">{r.acao}</span>

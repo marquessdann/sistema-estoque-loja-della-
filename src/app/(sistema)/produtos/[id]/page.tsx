@@ -17,7 +17,7 @@ import type { MovimentacaoLinha } from '@/lib/tipos';
 
 export default function DetalheProduto() {
   const { id } = useParams<{ id: string }>();
-  const { produtoPorId, lojas, versao, recarregar, pode, ehAdmin } = useDados();
+  const { produtoPorId, lojas, versao, recarregar, pode, ehAdmin, ehCeo } = useDados();
   const router = useRouter();
   const produto = produtoPorId(Number(id));
   const [alteracoes, setAlteracoes] = useState<
@@ -144,7 +144,7 @@ export default function DetalheProduto() {
             <Power className="h-4 w-4" /> {produto.ativo ? 'Inativar' : 'Reativar'}
           </button>
         )}
-        {ehAdmin && historico && historico.length === 0 && (
+        {ehCeo && historico && historico.length === 0 && (
           <button className="btn-secundario text-rose-300" onClick={() => setConfirmarExcluir(true)}>
             <Trash2 className="h-4 w-4" /> Excluir
           </button>

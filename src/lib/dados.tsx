@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { supabaseNavegador } from './supabase/client';
 import type { Cadastro, Loja, Permissao, Produto, Usuario } from './tipos';
+import { podeCargo } from './formato';
 
 // "Central de dados" do sistema: carrega usuário, lojas e produtos (com saldos)
 // uma vez e mantém tudo atualizado em TEMPO REAL. Assim a busca é instantânea
@@ -12,8 +13,11 @@ interface Dados {
   carregando: boolean;
   erro: string | null;
   usuario: Usuario | null;
+  /** CEO ou gerente */
   ehAdmin: boolean;
-  /** o usuário logado pode fazer esta ação? (admin sempre pode) */
+  /** só o CEO: usuários, lojas, senhas dos estoques, configurações */
+  ehCeo: boolean;
+  /** o usuário logado pode fazer esta ação? (o mesmo que o banco confere) */
   pode: (p: Permissao) => boolean;
   /** lojas ativas */
   lojas: Loja[];
@@ -138,17 +142,15 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
     const mapaProdutos = new Map(produtos.map((p) => [p.id, p]));
     const mapaCat = new Map(categorias.map((c) => [c.id, c.nome]));
     const mapaMarca = new Map(marcas.map((c) => [c.id, c.nome]));
-    const ehAdmin = usuario?.perfil === 'admin';
-    const pode = (p: Permissao) => {
-      if (!usuario) return false;
-      if (ehAdmin) return true;
-      return Boolean(usuario[`perm_${p}` as keyof Usuario]);
-    };
+    const ehAdmin = usuario?.cargo === 'ceo' || usuario?.cargo === 'gerente';
+    const ehCeo = usuario?.cargo === 'ceo';
+    const pode = (p: Permissao) => (usuario ? podeCargo(usuario.cargo, p) : false);
     return {
       carregando,
       erro,
       usuario,
       ehAdmin,
+      ehCeo,
       pode,
       lojas,
       lojaAtual: lojas.find((l) => l.id === usuario?.loja_atual),

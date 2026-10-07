@@ -1,4 +1,4 @@
-import type { Produto, StatusTransferencia, TipoOperacao } from './tipos';
+import type { Cargo, Permissao, Plataforma, Produto, StatusTransferencia, TipoOperacao } from './tipos';
 
 // Funções para mostrar números, valores e datas no padrão brasileiro.
 
@@ -64,7 +64,7 @@ export const MOTIVOS_ENTRADA = [
 ];
 
 export const MOTIVOS_SAIDA = [
-  { valor: 'venda', rotulo: 'Venda' },
+  { valor: 'venda', rotulo: 'Pedido (venda)' },
   { valor: 'perda', rotulo: 'Perda / extravio' },
   { valor: 'avaria', rotulo: 'Avaria / defeito' },
   { valor: 'uso_interno', rotulo: 'Uso interno' },
@@ -169,3 +169,41 @@ export function eanValido(ean: string) {
 
 // Identificador único de um formulário: se o mesmo envio chegar 2 vezes, o banco não duplica
 export const novaChave = () => crypto.randomUUID();
+
+// ---------- Cargos ----------
+// Mesma regra do banco (tem_permissao): o banco confere de novo em toda gravação.
+export const CARGOS: Record<Cargo, { rotulo: string; cor: string; descricao: string }> = {
+  ceo: { rotulo: 'CEO', cor: 'bg-della-azul text-white', descricao: 'Tudo: usuários, senhas dos estoques, lojas e configurações.' },
+  gerente: {
+    rotulo: 'Gerente',
+    cor: 'bg-amber-100 text-amber-900',
+    descricao: 'Autoriza: produtos, entrada, baixa, transferência, inventário, estorno, relatórios e log. Sem usuários e configurações.',
+  },
+  funcionario: {
+    rotulo: 'Funcionário',
+    cor: 'bg-slate-100 text-slate-700',
+    descricao: 'O básico: entra nos estoques, transfere e dá baixa. Vê só o que ele lançou.',
+  },
+};
+
+export function podeCargo(cargo: Cargo, p: Permissao) {
+  if (cargo === 'ceo' || cargo === 'gerente') return true;
+  return p === 'saida' || p === 'transferir';
+}
+
+// ---------- Plataformas dos pedidos ----------
+export const PLATAFORMAS: Record<Plataforma, { rotulo: string; cor: string }> = {
+  mercado_livre: { rotulo: 'Mercado Livre', cor: 'bg-yellow-300 text-slate-900' },
+  tiktok_shop: { rotulo: 'TikTok Shop', cor: 'bg-slate-900 text-white' },
+};
+export const rotuloPlataforma = (p: Plataforma | string | null | undefined) =>
+  p ? (PLATAFORMAS[p as Plataforma]?.rotulo ?? p) : '';
+/** no FULL só sai pedido do Mercado Livre */
+export const ehFull = (codigo: string | null | undefined) => codigo === 'FULL_ML';
+
+/** agora, no formato do campo "data e hora" (datetime-local), no horário do aparelho */
+export function agoraLocal() {
+  const d = new Date();
+  d.setSeconds(0, 0);
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+}

@@ -2,7 +2,7 @@
 
 export type Perfil = 'admin' | 'operador';
 
-// Permissões que o administrador pode dar (ou tirar) de cada operador
+// Ações conferidas pelo banco (o que cada cargo pode fazer: ver podeCargo em formato.ts)
 export type Permissao =
   | 'produtos'
   | 'entrada'
@@ -25,21 +25,18 @@ export interface Loja {
   ativa: boolean;
 }
 
+export type Cargo = 'ceo' | 'gerente' | 'funcionario';
+export type Plataforma = 'mercado_livre' | 'tiktok_shop';
+
 export interface Usuario {
   id: string;
   nome: string;
   email: string;
   perfil: Perfil;
+  /** cargo fixo: CEO (tudo), gerente (autoriza, sem configurações) ou funcionário (baixa e transferência) */
+  cargo: Cargo;
   ativo: boolean;
   criado_em: string;
-  perm_produtos: boolean;
-  perm_entrada: boolean;
-  perm_saida: boolean;
-  perm_transferir: boolean;
-  perm_inventario: boolean;
-  perm_estornar: boolean;
-  perm_relatorios: boolean;
-  perm_historico: boolean;
   loja_atual: number | null; // estoque em que a pessoa está trabalhando agora
 }
 
@@ -103,6 +100,11 @@ export interface OperacaoResumo {
   usuario_nome: string;
   qtd_produtos: number;
   qtd_unidades: number;
+  numero_pedido: string | null;
+  cliente_nome: string | null;
+  plataforma: Plataforma | null;
+  /** data e hora do fato (informada no lançamento) */
+  data_hora: string;
 }
 
 export interface MovimentacaoLinha {
@@ -137,6 +139,11 @@ export interface MovimentacaoLinha {
   fornecedor_nome: string | null;
   estorno_de: number | null;
   estornada_por: number | null;
+  numero_pedido: string | null;
+  cliente_nome: string | null;
+  plataforma: Plataforma | null;
+  /** data e hora do fato (informada no lançamento) */
+  data_hora: string;
 }
 
 export interface NotaFiscal {
@@ -218,6 +225,7 @@ export interface RegistroLog {
   quando: string;
   usuario_id: string | null;
   usuario_nome: string;
+  /** cargo de quem fez (ceo, gerente, funcionario) */
   perfil: string | null;
   acao: string;
   detalhe: string;

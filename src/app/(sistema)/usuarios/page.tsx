@@ -3,25 +3,13 @@
 import { Loader2, Plus, UserCog } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { Campo, Carregando, Modal, Titulo, Vazio } from '@/components/ui';
+import { Campo, Carregando, Modal, SemPermissao, Titulo } from '@/components/ui';
 import { useDados } from '@/lib/dados';
-import { dataHora } from '@/lib/formato';
+import { CARGOS, dataHora } from '@/lib/formato';
 import { supabaseNavegador } from '@/lib/supabase/client';
-import type { Perfil, Usuario } from '@/lib/tipos';
+import type { Cargo, Usuario } from '@/lib/tipos';
 
 const LIMITE = 3;
-
-// O que cada permissão libera para o OPERADOR (o administrador sempre pode tudo)
-const PERMS: { chave: keyof Usuario; rotulo: string; dica: string; padrao: boolean }[] = [
-  { chave: 'perm_entrada', rotulo: 'Registrar entradas', dica: 'Compras, notas fiscais, importar XML', padrao: true },
-  { chave: 'perm_saida', rotulo: 'Registrar saídas', dica: 'Venda, perda, avaria, uso interno...', padrao: true },
-  { chave: 'perm_transferir', rotulo: 'Transferir entre lojas', dica: 'Sai de uma loja e entra na outra na hora', padrao: true },
-  { chave: 'perm_inventario', rotulo: 'Fazer inventário (ajuste)', dica: 'Corrigir saldo pela contagem', padrao: true },
-  { chave: 'perm_estornar', rotulo: 'Estornar lançamentos', dica: 'Desfazer entradas, saídas e transferências', padrao: false },
-  { chave: 'perm_produtos', rotulo: 'Cadastrar e editar produtos', dica: 'Inclui categorias, marcas e importação de planilha', padrao: false },
-  { chave: 'perm_relatorios', rotulo: 'Ver relatórios', dica: 'Exportar Excel/PDF', padrao: true },
-  { chave: 'perm_historico', rotulo: 'Ver histórico de todos', dica: 'Desmarcado: vê só os lançamentos que ele fez', padrao: true },
-];
 
 async function chamarApi(metodo: 'POST' | 'PATCH', corpo: object) {
   const r = await fetch('/api/usuarios', {
@@ -34,7 +22,7 @@ async function chamarApi(metodo: 'POST' | 'PATCH', corpo: object) {
 }
 
 export default function Usuarios() {
-  const { ehAdmin, usuario: eu, recarregar } = useDados();
+  const { ehCeo, usuario: eu, recarregar } = useDados();
   const [lista, setLista] = useState<Usuario[] | null>(null);
   const [editando, setEditando] = useState<Usuario | 'novo' | null>(null);
 
@@ -46,7 +34,7 @@ export default function Usuarios() {
     carregar();
   }, [carregar]);
 
-  if (!ehAdmin) return <Vazio>Apenas o administrador pode acessar esta tela.</Vazio>;
+  if (!ehCeo) return <SemPermissao texto="Apenas o CEO pode acessar a tela de usuários." />;
 
   const ativos = lista?.filter((u) => u.ativo).length ?? 0;
   const cheio = ativos >= LIMITE;
@@ -82,21 +70,13 @@ export default function Usuarios() {
               <div className="font-titulo text-lg font-bold">{u.nome}</div>
               <div className="break-all text-sm text-suave">{u.email}</div>
               <div className="flex flex-wrap gap-2 text-xs">
-                <span className={`rounded px-2 py-0.5 font-semibold ${u.perfil === 'admin' ? 'bg-dourado text-preto' : 'bg-marinho text-white'}`}>
-                  {u.perfil === 'admin' ? 'Administrador' : 'Operador'}
+                <span data-cargo={u.cargo} className={`rounded px-2 py-0.5 font-bold uppercase ${CARGOS[u.cargo].cor}`}>
+                  {CARGOS[u.cargo].rotulo}
                 </span>
                 {!u.ativo && <span className="rounded bg-rose-500/20 px-2 py-0.5 text-rose-300">Desativado</span>}
                 {u.id === eu?.id && <span className="rounded bg-white/10 px-2 py-0.5">Você</span>}
               </div>
-              {u.perfil === 'operador' && (
-                <ul className="space-y-0.5 text-xs">
-                  {PERMS.map((pm) => (
-                    <li key={pm.chave} className={u[pm.chave] ? 'text-emerald-300' : 'text-neutral-500 line-through'}>
-                      {u[pm.chave] ? '✓' : '✗'} {pm.rotulo}
-                    </li>
-                  ))}
-                </ul>
-              )}
+              <p className="text-xs text-suave">{CARGOS[u.cargo].descricao}</p>
               <div className="text-xs text-neutral-500">Desde {dataHora(u.criado_em)}</div>
               <button className="btn-secundario w-full" onClick={() => setEditando(u)}>
                 <UserCog className="h-4 w-4" /> Editar
@@ -107,9 +87,15 @@ export default function Usuarios() {
       )}
 
       <div className="cartao text-sm text-suave">
-        <b className="text-white">Perfis:</b> o <b>Administrador</b> faz tudo, inclusive usuários, lojas, configurações,
-        inativar/excluir produtos e o Log de atividades. O <b>Operador</b> faz só o que estiver marcado nas permissões dele. As
-        permissões são conferidas também no banco de dados: não dá para burlar pela tela nem por chamadas diretas.
+        <b className="text-white">Cargos:</b>
+        <ul className="mt-1 space-y-1">
+          {(Object.keys(CARGOS) as Cargo[]).map((c) => (
+            <li key={c}>
+              <b className="text-white">{CARGOS[c].rotulo}:</b> {CARGOS[c].descricao}
+            </li>
+          ))}
+        </ul>
+        <p className="mt-2">O banco de dados confere o cargo em cada ação: não dá para burlar pela tela nem por chamadas diretas.</p>
       </div>
 
       {editando && (
@@ -141,12 +127,10 @@ function FormUsuario({
 }) {
   const [nome, setNome] = useState(usuario?.nome ?? '');
   const [email, setEmail] = useState(usuario?.email ?? '');
-  const [perfil, setPerfil] = useState<Perfil>(usuario?.perfil ?? 'operador');
+  const [cargo, setCargo] = useState<Cargo>(usuario?.cargo ?? 'funcionario');
+  const ehOCeo = usuario?.cargo === 'ceo';
   const [senha, setSenha] = useState('');
   const [ativo, setAtivo] = useState(usuario?.ativo ?? true);
-  const [perms, setPerms] = useState<Record<string, boolean>>(
-    Object.fromEntries(PERMS.map((p) => [p.chave, usuario ? Boolean(usuario[p.chave]) : p.padrao])),
-  );
   const [ocupado, setOcupado] = useState(false);
 
   async function salvar(e: React.FormEvent) {
@@ -155,8 +139,9 @@ function FormUsuario({
     if (usuario && usuario.ativo && !ativo && !window.confirm(`Desativar ${usuario.nome}? A pessoa não vai mais conseguir entrar.`)) return;
     setOcupado(true);
     try {
-      if (usuario) await chamarApi('PATCH', { id: usuario.id, nome, perfil, ativo, senha: senha || undefined, permissoes: perms });
-      else await chamarApi('POST', { nome, email, senha, perfil, permissoes: perms });
+      if (usuario)
+        await chamarApi('PATCH', { id: usuario.id, nome, cargo: ehOCeo ? undefined : cargo, ativo, senha: senha || undefined });
+      else await chamarApi('POST', { nome, email, senha, cargo });
       toast.success(usuario ? 'Usuário atualizado!' : 'Usuário criado! Passe o e-mail e a senha para a pessoa.');
       aoSalvar();
     } catch (err) {
@@ -175,34 +160,26 @@ function FormUsuario({
         <Campo rotulo="E-mail (usado no login)" obrigatorio>
           <input type="email" className="campo" value={email} onChange={(e) => setEmail(e.target.value)} disabled={!!usuario} required />
         </Campo>
-        <Campo rotulo="Perfil">
-          <select className="campo" value={perfil} onChange={(e) => setPerfil(e.target.value as Perfil)} disabled={souEu}>
-            <option value="operador">Operador (só o que estiver liberado abaixo)</option>
-            <option value="admin">Administrador (tudo)</option>
-          </select>
-        </Campo>
-        {perfil === 'operador' ? (
+        {ehOCeo ? (
+          <p className="rounded-lg bg-white/5 p-2 text-xs text-suave">
+            <b className="text-white">CEO</b>: acesso a tudo. O cargo de CEO não pode ser trocado.
+          </p>
+        ) : (
           <div>
-            <span className="rotulo">Permissões do operador</span>
-            <div className="space-y-1 rounded-lg border border-borda bg-painel2 p-2">
-              {PERMS.map((pm) => (
-                <label key={pm.chave} className="flex min-h-[40px] cursor-pointer items-start gap-2 rounded px-1 py-1 hover:bg-white/5">
-                  <input
-                    type="checkbox"
-                    className="mt-0.5 h-5 w-5 shrink-0 accent-dourado"
-                    checked={perms[pm.chave]}
-                    onChange={(e) => setPerms({ ...perms, [pm.chave]: e.target.checked })}
-                  />
-                  <span className="text-sm">
-                    {pm.rotulo}
-                    <span className="block text-xs text-suave">{pm.dica}</span>
-                  </span>
+            <span className="rotulo">Cargo</span>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {(['gerente', 'funcionario'] as Cargo[]).map((c) => (
+                <label
+                  key={c}
+                  className={`cursor-pointer rounded-lg border p-3 text-sm ${cargo === c ? 'border-dourado bg-dourado/10' : 'border-borda bg-painel2'}`}
+                >
+                  <input type="radio" name="cargo" value={c} className="sr-only" checked={cargo === c} onChange={() => setCargo(c)} />
+                  <b className="block">{CARGOS[c].rotulo}</b>
+                  <span className="text-xs text-suave">{CARGOS[c].descricao}</span>
                 </label>
               ))}
             </div>
           </div>
-        ) : (
-          <p className="rounded-lg bg-white/5 p-2 text-xs text-suave">O administrador tem acesso a tudo.</p>
         )}
         <Campo rotulo={usuario ? 'Nova senha (deixe vazio para manter)' : 'Senha inicial'} dica="Mínimo de 8 caracteres" obrigatorio={!usuario}>
           <input type="text" className="campo" value={senha} onChange={(e) => setSenha(e.target.value)} autoComplete="new-password" />

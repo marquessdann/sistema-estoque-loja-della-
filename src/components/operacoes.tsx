@@ -7,9 +7,21 @@ import { toast } from 'sonner';
 import { useDados } from '@/lib/dados';
 import { mensagemErro } from '@/lib/erros';
 import { exportarExcel, exportarPDF, type Coluna } from '@/lib/exportar';
-import { dataHora, data as fmtData, fimDoDia, hojeISO, inicioDoDia, moeda, numero, rotuloMotivo, TIPOS } from '@/lib/formato';
+import {
+  dataHora,
+  data as fmtData,
+  fimDoDia,
+  hojeISO,
+  inicioDoDia,
+  moeda,
+  numero,
+  PLATAFORMAS,
+  rotuloMotivo,
+  rotuloPlataforma,
+  TIPOS,
+} from '@/lib/formato';
 import { supabaseNavegador } from '@/lib/supabase/client';
-import type { MovimentacaoLinha, NotaFiscal, OperacaoResumo, TipoOperacao } from '@/lib/tipos';
+import type { MovimentacaoLinha, NotaFiscal, OperacaoResumo, Plataforma, TipoOperacao } from '@/lib/tipos';
 import { formatarChave, formatarCNPJ } from '@/lib/validacao';
 import { LojaTag } from './loja';
 import { abrirAnexoNota } from './nota-fiscal';
@@ -32,6 +44,12 @@ export function LojasDaOperacao({ op }: { op: OperacaoResumo }) {
   return <span className="text-xs text-suave">Todas as lojas</span>;
 }
 
+// Etiqueta da plataforma do pedido (Mercado Livre / TikTok Shop)
+export function PlataformaTag({ plataforma }: { plataforma: Plataforma | null | undefined }) {
+  if (!plataforma || !PLATAFORMAS[plataforma]) return null;
+  return <span className={`rounded px-1.5 py-0.5 text-xs font-bold ${PLATAFORMAS[plataforma].cor}`}>{PLATAFORMAS[plataforma].rotulo}</span>;
+}
+
 // Uma linha da lista de operações (clicável)
 export function LinhaOperacao({ op, aoAbrir }: { op: OperacaoResumo; aoAbrir: () => void }) {
   return (
@@ -47,11 +65,14 @@ export function LinhaOperacao({ op, aoAbrir }: { op: OperacaoResumo; aoAbrir: ()
         <div className="flex flex-wrap items-center gap-2 text-sm">
           <LojasDaOperacao op={op} />
           <span className="text-neutral-300">{rotuloMotivo(op.motivo)}</span>
+          <PlataformaTag plataforma={op.plataforma} />
+          {op.numero_pedido && <span className="rounded bg-white/5 px-1.5 py-0.5 text-xs font-semibold">Pedido {op.numero_pedido}</span>}
+          {op.cliente_nome && <span className="text-xs text-suave">{op.cliente_nome}</span>}
           {op.nf_numero && <span className="rounded bg-white/5 px-1.5 py-0.5 text-xs text-dourado">NF {op.nf_numero}</span>}
           {op.estornada_por && <span className="rounded bg-orange-400/10 px-1.5 py-0.5 text-xs text-orange-300">estornada</span>}
         </div>
         <div className="mt-0.5 text-xs text-suave">
-          {dataHora(op.criado_em)} · {op.usuario_nome} · {op.qtd_produtos} produto(s), {numero(op.qtd_unidades)} un.
+          {dataHora(op.data_hora ?? op.criado_em)} · {op.usuario_nome} · {op.qtd_produtos} produto(s), {numero(op.qtd_unidades)} un.
         </div>
       </div>
     </button>
@@ -114,9 +135,16 @@ export function DetalheOperacao({ id, aoFechar }: { id: number | null; aoFechar:
         <div className="space-y-4 text-sm">
           <div className="grid gap-3 sm:grid-cols-2">
             <Info rotulo="Registrado em">{dataHora(op.criado_em)}</Info>
-            {op.data_referencia && fmtData(op.data_referencia) !== fmtData(op.criado_em) && (
-              <Info rotulo="Data informada do fato">{fmtData(op.data_referencia)}</Info>
+            {op.data_hora && dataHora(op.data_hora) !== dataHora(op.criado_em) && (
+              <Info rotulo="Data e hora informadas">{dataHora(op.data_hora)}</Info>
             )}
+            {op.plataforma && (
+              <Info rotulo="Plataforma">
+                <PlataformaTag plataforma={op.plataforma} />
+              </Info>
+            )}
+            {op.numero_pedido && <Info rotulo="Número do pedido">{op.numero_pedido}</Info>}
+            {op.cliente_nome && <Info rotulo="Cliente">{op.cliente_nome}</Info>}
             {op.transferencia_id && (
               <Info rotulo="Transferência">
                 <Link href={`/transferencias/${op.transferencia_id}`} className="text-dourado underline">
@@ -253,6 +281,8 @@ export function ListaOperacoes({ tipoFixo }: { tipoFixo?: TipoOperacao }) {
   // cada estoque vê as próprias movimentações
   const lojaId = lojaAtual?.id ?? '';
   const [nf, setNf] = useState('');
+  const [pedido, setPedido] = useState('');
+  const [plataforma, setPlataforma] = useState<Plataforma | ''>('');
   const [produtoId, setProdutoId] = useState<number | null>(null);
   const [lista, setLista] = useState<OperacaoResumo[] | null>(null);
   const [limite, setLimite] = useState(100);
@@ -276,6 +306,8 @@ export function ListaOperacoes({ tipoFixo }: { tipoFixo?: TipoOperacao }) {
     if (tipo) consulta = consulta.eq('tipo', tipo);
     if (lojaId) consulta = consulta.or(`loja_origem_id.eq.${lojaId},loja_destino_id.eq.${lojaId}`);
     if (nf.trim()) consulta = consulta.ilike('nf_numero', `%${nf.trim().replace(/[%_,()]/g, '')}%`);
+    if (pedido.trim()) consulta = consulta.ilike('numero_pedido', `%${pedido.trim().replace(/[%_,()]/g, '')}%`);
+    if (plataforma) consulta = consulta.eq('plataforma', plataforma);
     if (produtoId) {
       // (os 300 lançamentos mais recentes do produto: limite do tamanho do endereço da consulta)
       const { data: movs } = await sb.from('movimentacoes').select('operacao_id').eq('produto_id', produtoId).order('id', { ascending: false }).limit(300);
@@ -289,7 +321,7 @@ export function ListaOperacoes({ tipoFixo }: { tipoFixo?: TipoOperacao }) {
       return setLista([]);
     }
     setLista(data as OperacaoResumo[]);
-  }, [de, ate, tipo, lojaId, nf, produtoId, limite]);
+  }, [de, ate, tipo, lojaId, nf, pedido, plataforma, produtoId, limite]);
 
   useEffect(() => {
     const t = setTimeout(buscar, 250);
@@ -307,7 +339,7 @@ export function ListaOperacoes({ tipoFixo }: { tipoFixo?: TipoOperacao }) {
       .order('criado_em', { ascending: false });
     if (error) return toast.error(mensagemErro(error));
     const colunas: Coluna<MovimentacaoLinha>[] = [
-      { titulo: 'Data/hora', valor: (m) => dataHora(m.criado_em), largura: 17 },
+      { titulo: 'Data/hora', valor: (m) => dataHora(m.data_hora ?? m.criado_em), largura: 17 },
       { titulo: 'Nº', valor: (m) => m.operacao_id, formato: 'inteiro', largura: 7 },
       { titulo: 'Tipo', valor: (m) => TIPOS[m.tipo].rotulo, largura: 13 },
       { titulo: 'Motivo', valor: (m) => rotuloMotivo(m.motivo), largura: 20 },
@@ -317,7 +349,10 @@ export function ListaOperacoes({ tipoFixo }: { tipoFixo?: TipoOperacao }) {
       { titulo: 'Qtd.', valor: (m) => m.quantidade, formato: 'inteiro', largura: 7 },
       { titulo: 'Saldo antes', valor: (m) => m.saldo_antes, formato: 'inteiro', largura: 10 },
       { titulo: 'Saldo depois', valor: (m) => m.saldo_apos, formato: 'inteiro', largura: 10 },
+      { titulo: 'Plataforma', valor: (m) => rotuloPlataforma(m.plataforma), largura: 13 },
+      { titulo: 'Pedido', valor: (m) => m.numero_pedido ?? '', largura: 16 },
       { titulo: 'NF', valor: (m) => m.nf_numero ?? '', largura: 10 },
+      { titulo: 'Cliente', valor: (m) => m.cliente_nome ?? '', largura: 20 },
       { titulo: 'Usuário', valor: (m) => m.usuario_nome, largura: 16 },
     ];
     const linhas = (data ?? []) as MovimentacaoLinha[];
@@ -331,7 +366,7 @@ export function ListaOperacoes({ tipoFixo }: { tipoFixo?: TipoOperacao }) {
 
   return (
     <div className="space-y-4">
-      <div className="cartao grid grid-cols-2 gap-3 md:grid-cols-6">
+      <div className="cartao grid grid-cols-2 gap-3 md:grid-cols-7">
         <Campo rotulo="De" className="col-span-1">
           <input type="date" className="campo" value={de} onChange={(e) => setDe(e.target.value)} />
         </Campo>
@@ -354,10 +389,27 @@ export function ListaOperacoes({ tipoFixo }: { tipoFixo?: TipoOperacao }) {
           <span className="rotulo">Estoque</span>
           <LojaTag loja={lojaAtual} />
         </div>
-        <Campo rotulo="Nº da nota fiscal" className={tipoFixo ? 'col-span-2' : 'col-span-2 md:col-span-2'}>
-          <input className="campo" value={nf} onChange={(e) => setNf(e.target.value)} placeholder="Buscar pelo número" />
+        <Campo rotulo="Nº da nota fiscal" className="col-span-1">
+          <input className="campo" value={nf} onChange={(e) => setNf(e.target.value)} placeholder="Número" />
         </Campo>
-        <div className="col-span-2 md:col-span-6">
+        {!tipoFixo && (
+          <>
+            <Campo rotulo="Nº do pedido" className="col-span-1">
+              <input className="campo" value={pedido} onChange={(e) => setPedido(e.target.value)} placeholder="Número" />
+            </Campo>
+            <Campo rotulo="Plataforma" className="col-span-2 md:col-span-1">
+              <select className="campo" value={plataforma} onChange={(e) => setPlataforma(e.target.value as Plataforma | '')}>
+                <option value="">Todas</option>
+                {(Object.keys(PLATAFORMAS) as Plataforma[]).map((p) => (
+                  <option key={p} value={p}>
+                    {PLATAFORMAS[p].rotulo}
+                  </option>
+                ))}
+              </select>
+            </Campo>
+          </>
+        )}
+        <div className="col-span-2 md:col-span-7">
           <span className="rotulo">Produto</span>
           {produtoFiltro ? (
             <div className="flex items-center justify-between rounded-lg border border-dourado/50 bg-painel2 px-3 py-2.5 text-sm">

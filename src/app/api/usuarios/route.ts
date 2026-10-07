@@ -1,45 +1,27 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin, supabaseServidor } from '@/lib/supabase/server';
 
-// API de usuários: só o ADMINISTRADOR pode criar ou alterar usuários.
+// API de usuários: só o CEO pode criar ou alterar usuários.
 // Roda no servidor porque precisa da chave secreta (service_role).
+// Não existem caixinhas de permissão: cada pessoa tem um CARGO fixo
+// (gerente ou funcionário; o CEO é único e não pode ser trocado por aqui).
 
 const LIMITE_USUARIOS = 3;
+const CARGOS_EDITAVEIS = ['gerente', 'funcionario'] as const;
+const cargoValido = (c: unknown): c is (typeof CARGOS_EDITAVEIS)[number] =>
+  typeof c === 'string' && (CARGOS_EDITAVEIS as readonly string[]).includes(c);
 
-// Só estas colunas de permissão podem ser alteradas (lista fechada: nada além disso passa)
-const PERMISSOES = [
-  'perm_produtos',
-  'perm_entrada',
-  'perm_saida',
-  'perm_transferir',
-  'perm_inventario',
-  'perm_estornar',
-  'perm_relatorios',
-  'perm_historico',
-] as const;
-
-function lerPermissoes(entrada: unknown) {
-  const saida: Record<string, boolean> = {};
-  if (entrada && typeof entrada === 'object') {
-    for (const k of PERMISSOES) {
-      const v = (entrada as Record<string, unknown>)[k];
-      if (typeof v === 'boolean') saida[k] = v;
-    }
-  }
-  return saida;
-}
-
-async function exigirAdmin() {
+async function exigirCeo() {
   const sb = await supabaseServidor();
   const {
     data: { user },
   } = await sb.auth.getUser();
   if (!user) return null;
-  const { data } = await sb.from('usuarios').select('id, nome, perfil, ativo').eq('id', user.id).maybeSingle();
-  return data?.ativo && data.perfil === 'admin' ? data : null;
+  const { data } = await sb.from('usuarios').select('id, nome, cargo, ativo').eq('id', user.id).maybeSingle();
+  return data?.ativo && data.cargo === 'ceo' ? data : null;
 }
 
-// Registra na auditoria quem (qual administrador) fez a alteração
+// Registra na auditoria quem fez a alteração
 async function auditar(eu: { id: string; nome: string }, acao: string, registroId: string, depois: object) {
   await supabaseAdmin().from('auditoria').insert({
     usuario_id: eu.id,
@@ -55,9 +37,10 @@ const erro = (mensagem: string, status = 400) => NextResponse.json({ erro: mensa
 
 // Criar usuário
 export async function POST(req: Request) {
-  const eu = await exigirAdmin();
-  if (!eu) return erro('Apenas o administrador pode cadastrar usuários.', 403);
-  const { nome, email, senha, perfil, permissoes } = await req.json();
+  const eu = await exigirCeo();
+  if (!eu) return erro('Apenas o CEO pode cadastrar usuários.', 403);
+  const { nome, email, senha, cargo } = await req.json();
+  if (cargo !== undefined && !cargoValido(cargo)) return erro('Cargo inválido: escolha Gerente ou Funcionário.');
   if (!nome?.trim() || !email?.trim()) return erro('Informe nome e e-mail.');
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email).trim())) return erro('E-mail inválido.');
   if (!senha || String(senha).length < 8) return erro('A senha precisa ter pelo menos 8 caracteres.');
@@ -68,7 +51,7 @@ export async function POST(req: Request) {
     return erro(`Limite de ${LIMITE_USUARIOS} usuários atingido. Desative um usuário antes de cadastrar outro.`, 409);
   }
 
-  // convite: o banco só aceita login novo que tenha convite do administrador
+  // convite: o banco só aceita login novo que tenha convite do CEO
   const emailLimpo = String(email).trim().toLowerCase();
   await admin.from('usuarios_convites').upsert({ email: emailLimpo, criado_em: new Date().toISOString() });
   const { data, error } = await admin.auth.admin.createUser({
@@ -84,33 +67,34 @@ export async function POST(req: Request) {
       return erro('O banco recusou o cadastro (limite de 3 usuários ativos ou e-mail já usado). Confira e tente de novo.');
     return erro(error.message);
   }
-  // o banco cria o usuário como "operador"; aplica perfil e permissões escolhidos
-  const ajustes = { ...lerPermissoes(permissoes), ...(perfil === 'admin' ? { perfil: 'admin' } : {}) };
-  if (Object.keys(ajustes).length) {
-    await admin.from('usuarios').update(ajustes).eq('id', data.user.id);
-  }
-  await auditar(eu, 'criou usuário', data.user.id, { nome, email, perfil: perfil === 'admin' ? 'admin' : 'operador' });
+  // o banco cria o usuário como "funcionário"; aplica o cargo escolhido
+  const cargoFinal = cargoValido(cargo) ? cargo : 'funcionario';
+  if (cargoFinal !== 'funcionario') await admin.from('usuarios').update({ cargo: cargoFinal }).eq('id', data.user.id);
+  await auditar(eu, 'criou usuário', data.user.id, { nome, email, cargo: cargoFinal });
   return NextResponse.json({ ok: true });
 }
 
-// Alterar usuário (nome, perfil, ativo, senha)
+// Alterar usuário (nome, cargo, ativo, senha)
 export async function PATCH(req: Request) {
-  const eu = await exigirAdmin();
-  if (!eu) return erro('Apenas o administrador pode alterar usuários.', 403);
-  const { id, nome, perfil, ativo, senha, permissoes } = await req.json();
+  const eu = await exigirCeo();
+  if (!eu) return erro('Apenas o CEO pode alterar usuários.', 403);
+  const { id, nome, cargo, ativo, senha } = await req.json();
   if (!id) return erro('Usuário não informado.');
 
   const admin = supabaseAdmin();
-  const mudancas: Record<string, unknown> = { ...lerPermissoes(permissoes) };
-  if (perfil && id === eu.id && perfil !== 'admin') return erro('Você não pode tirar o seu próprio acesso de administrador.');
+  const mudancas: Record<string, unknown> = {};
+  if (cargo !== undefined) {
+    if (id === eu.id) return erro('O CEO não pode mudar o próprio cargo.');
+    if (!cargoValido(cargo)) return erro('Cargo inválido: escolha Gerente ou Funcionário.');
+    mudancas.cargo = cargo;
+  }
   if (typeof nome === 'string' && nome.trim()) mudancas.nome = nome.trim();
-  if (perfil === 'admin' || perfil === 'operador') mudancas.perfil = perfil;
   if (typeof ativo === 'boolean') {
     if (!ativo && id === eu.id) return erro('Você não pode desativar o seu próprio usuário.');
     mudancas.ativo = ativo;
   }
   if (Object.keys(mudancas).length) {
-    // as regras do banco (limite de 3, sempre 1 admin) são verificadas aqui
+    // as regras do banco (limite de 3, sempre 1 CEO) são verificadas aqui
     const { error } = await admin.from('usuarios').update(mudancas).eq('id', id);
     if (error) return erro(error.message);
   }

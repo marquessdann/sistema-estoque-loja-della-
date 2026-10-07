@@ -29,7 +29,7 @@ import { supabaseNavegador } from '@/lib/supabase/client';
 import type { Permissao } from '@/lib/tipos';
 import { EscolherEstoque } from './escolher-estoque';
 import { LojaTag } from './loja';
-import { corTexto } from '@/lib/formato';
+import { CARGOS, corTexto } from '@/lib/formato';
 import { Carregando, Campo, Modal } from './ui';
 
 // "perm": só aparece para quem tem a permissão (o banco também bloqueia)
@@ -37,28 +37,29 @@ const MENU: { href: string; rotulo: string; icone: typeof Package; perm?: Permis
   { href: '/', rotulo: 'Painel', icone: LayoutDashboard },
   { href: '/produtos', rotulo: 'Produtos', icone: Package },
   { href: '/entrada', rotulo: 'Entrada', icone: PackagePlus, perm: 'entrada' },
-  { href: '/saida', rotulo: 'Saída', icone: PackageMinus, perm: 'saida' },
-  { href: '/transferencia', rotulo: 'Transferir', icone: ArrowLeftRight, perm: 'transferir' },
+  { href: '/saida', rotulo: 'Saída (pedidos)', icone: PackageMinus, perm: 'saida' },
+  { href: '/transferencia', rotulo: 'Transferir entre estoques', icone: ArrowLeftRight, perm: 'transferir' },
   { href: '/transferencias', rotulo: 'Histórico de transferências', icone: Truck },
   { href: '/inventario', rotulo: 'Inventário', icone: ClipboardCheck, perm: 'inventario' },
   { href: '/movimentacoes', rotulo: 'Movimentações', icone: History },
   { href: '/notas', rotulo: 'Notas fiscais', icone: Receipt },
   { href: '/relatorios', rotulo: 'Relatórios', icone: ChartColumn, perm: 'relatorios' },
 ];
-const MENU_ADMIN = [
-  { href: '/log', rotulo: 'Log de atividades', icone: ScrollText },
-  { href: '/usuarios', rotulo: 'Usuários e permissões', icone: Users },
+// CEO e gerente veem o log; usuários e configurações são só do CEO
+const MENU_GESTAO = [{ href: '/log', rotulo: 'Log de atividades', icone: ScrollText }];
+const MENU_CEO = [
+  { href: '/usuarios', rotulo: 'Usuários', icone: Users },
   { href: '/configuracoes', rotulo: 'Configurações', icone: Settings },
 ];
-const MENU_CELULAR = [
+const MENU_CELULAR: { href: string; rotulo: string; icone: typeof Package; perm?: Permissao }[] = [
   { href: '/', rotulo: 'Painel', icone: LayoutDashboard },
-  { href: '/produtos', rotulo: 'Produtos', icone: Package },
-  { href: '/transferencia', rotulo: 'Transferir', icone: ArrowLeftRight },
+  { href: '/saida', rotulo: 'Saída', icone: PackageMinus, perm: 'saida' },
+  { href: '/transferencia', rotulo: 'Transferir', icone: ArrowLeftRight, perm: 'transferir' },
   { href: '/movimentacoes', rotulo: 'Histórico', icone: History },
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const { carregando, erro, usuario, ehAdmin, pode, lojaAtual } = useDados();
+  const { carregando, erro, usuario, ehAdmin, ehCeo, pode, lojaAtual } = useDados();
   const [trocarEstoque, setTrocarEstoque] = useState(false);
   const caminho = usePathname();
   const [menuAberto, setMenuAberto] = useState(false);
@@ -66,7 +67,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const ativo = (href: string) => (href === '/' ? caminho === '/' : caminho.startsWith(href));
   const permitidos = MENU.filter((m) => !m.perm || pode(m.perm));
-  const itens = ehAdmin ? [...permitidos, ...MENU_ADMIN] : permitidos;
+  const itens = [...permitidos, ...(ehAdmin ? MENU_GESTAO : []), ...(ehCeo ? MENU_CEO : [])];
 
   async function sair() {
     await supabaseNavegador().auth.signOut();
@@ -117,7 +118,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div className="border-t border-borda p-3">
       <div className="mb-2 px-2">
         <div className="truncate text-sm font-semibold">{usuario.nome}</div>
-        <div className="text-xs text-suave">{usuario.perfil === 'admin' ? 'Administrador' : 'Operador'}</div>
+        <div className="text-xs text-suave">{CARGOS[usuario.cargo]?.rotulo}</div>
       </div>
       <div className="flex gap-1">
         <button className="btn-fantasma flex-1 justify-start text-xs" onClick={() => setTrocarSenha(true)}>
@@ -195,7 +196,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* Barra inferior com botões grandes (celular) */}
       <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-borda bg-painel/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden">
-        {MENU_CELULAR.map(({ href, rotulo, icone: Icone }) => (
+        {MENU_CELULAR.filter((m) => !m.perm || pode(m.perm)).map(({ href, rotulo, icone: Icone }) => (
           <Link
             key={href}
             href={href}

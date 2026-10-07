@@ -10,6 +10,8 @@ import { buscarTudo, useDados } from '@/lib/dados';
 import { mensagemErro } from '@/lib/erros';
 import { exportarExcel, exportarPDF, type Coluna } from '@/lib/exportar';
 import {
+  PLATAFORMAS,
+  rotuloPlataforma,
   abaixoDoMinimo,
   data as fmtData,
   dataHora,
@@ -24,7 +26,8 @@ import {
   TIPOS,
 } from '@/lib/formato';
 import { supabaseNavegador } from '@/lib/supabase/client';
-import type { MovimentacaoLinha, Produto, TipoOperacao } from '@/lib/tipos';
+import type { MovimentacaoLinha, Plataforma, Produto, TipoOperacao } from '@/lib/tipos';
+import { PlataformaTag } from '@/components/operacoes';
 
 type Aba = 'movimentacoes' | 'posicao' | 'baixo';
 
@@ -79,6 +82,7 @@ function RelMovimentacoes() {
   const [ate, setAte] = useState(hojeISO());
   const [lojaId, setLojaId] = useState<number | ''>('');
   const [tipo, setTipo] = useState<TipoOperacao | ''>('');
+  const [plataforma, setPlataforma] = useState<Plataforma | ''>('');
   const [produtoId, setProdutoId] = useState<number | null>(null);
   const [linhas, setLinhas] = useState<MovimentacaoLinha[] | null>(null);
   const [carregando, setCarregando] = useState(false);
@@ -92,6 +96,7 @@ function RelMovimentacoes() {
         if (ate) q = q.lte('criado_em', fimDoDia(ate));
         if (lojaId) q = q.eq('loja_id', lojaId);
         if (tipo) q = q.eq('tipo', tipo);
+        if (plataforma) q = q.eq('plataforma', plataforma);
         if (produtoId) q = q.eq('produto_id', produtoId);
         return q.range(inicio, fim);
       });
@@ -114,7 +119,7 @@ function RelMovimentacoes() {
   }, [linhas]);
 
   const colunas: Coluna<MovimentacaoLinha>[] = [
-    { titulo: 'Data/hora', valor: (m) => dataHora(m.criado_em), largura: 17 },
+    { titulo: 'Data/hora', valor: (m) => dataHora(m.data_hora ?? m.criado_em), largura: 17 },
     { titulo: 'Nº', valor: (m) => m.operacao_id, formato: 'inteiro', largura: 7 },
     { titulo: 'Tipo', valor: (m) => TIPOS[m.tipo].rotulo, largura: 13 },
     { titulo: 'Motivo', valor: (m) => rotuloMotivo(m.motivo), largura: 22 },
@@ -125,8 +130,11 @@ function RelMovimentacoes() {
     { titulo: 'Custo un.', valor: (m) => (m.custo_unitario != null ? Number(m.custo_unitario) : null), formato: 'moeda', largura: 11 },
     { titulo: 'Saldo antes', valor: (m) => m.saldo_antes, formato: 'inteiro', largura: 10 },
     { titulo: 'Saldo depois', valor: (m) => m.saldo_apos, formato: 'inteiro', largura: 10 },
-    { titulo: 'Data do fato', valor: (m) => fmtData(m.data_referencia), largura: 11 },
+    { titulo: 'Lançado em', valor: (m) => dataHora(m.criado_em), largura: 17 },
+    { titulo: 'Plataforma', valor: (m) => rotuloPlataforma(m.plataforma), largura: 13 },
+    { titulo: 'Pedido', valor: (m) => m.numero_pedido ?? '', largura: 16 },
     { titulo: 'NF', valor: (m) => m.nf_numero ?? '', largura: 10 },
+    { titulo: 'Cliente', valor: (m) => m.cliente_nome ?? '', largura: 20 },
     { titulo: 'Usuário', valor: (m) => m.usuario_nome, largura: 16 },
   ];
 
@@ -136,6 +144,7 @@ function RelMovimentacoes() {
       `Período: ${de ? fmtData(de) : 'início'} a ${ate ? fmtData(ate) : 'hoje'}`,
       lojaId ? `Loja: ${loja(lojaId)?.nome}` : 'Todas as lojas',
       tipo ? `Tipo: ${TIPOS[tipo].rotulo}` : '',
+      plataforma ? `Plataforma: ${PLATAFORMAS[plataforma].rotulo}` : '',
       produtoId ? `Produto: ${produtoPorId(produtoId)?.nome}` : '',
     ]
       .filter(Boolean)
@@ -148,7 +157,7 @@ function RelMovimentacoes() {
 
   return (
     <div className="space-y-4">
-      <div className="cartao grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div className="cartao grid grid-cols-2 gap-3 md:grid-cols-5">
         <Campo rotulo="De">
           <input type="date" className="campo" value={de} onChange={(e) => setDe(e.target.value)} />
         </Campo>
@@ -175,7 +184,17 @@ function RelMovimentacoes() {
             ))}
           </select>
         </Campo>
-        <div className="col-span-2 md:col-span-4">
+        <Campo rotulo="Plataforma (pedidos)" className="col-span-2 md:col-span-1">
+          <select className="campo" value={plataforma} onChange={(e) => setPlataforma(e.target.value as Plataforma | '')}>
+            <option value="">Todas</option>
+            {(Object.keys(PLATAFORMAS) as Plataforma[]).map((p) => (
+              <option key={p} value={p}>
+                {PLATAFORMAS[p].rotulo}
+              </option>
+            ))}
+          </select>
+        </Campo>
+        <div className="col-span-2 md:col-span-5">
           <span className="rotulo">Produto</span>
           {produtoFiltro ? (
             <div className="flex items-center justify-between rounded-lg border border-dourado/50 bg-painel2 px-3 py-2.5 text-sm">
@@ -188,7 +207,7 @@ function RelMovimentacoes() {
             <ProdutoBusca aoEscolher={(p) => setProdutoId(p.id)} incluirInativos placeholder="Todos os produtos (ou escolha um)" />
           )}
         </div>
-        <button className="btn-principal col-span-2 md:col-span-4" onClick={gerar} disabled={carregando}>
+        <button className="btn-principal col-span-2 md:col-span-5" onClick={gerar} disabled={carregando}>
           Gerar relatório
         </button>
       </div>
@@ -221,14 +240,14 @@ function RelMovimentacoes() {
                     <th>Produto</th>
                     <th className="text-right">Qtd.</th>
                     <th className="text-right">Antes → depois</th>
-                    <th>NF</th>
+                    <th>Pedido / NF</th>
                     <th>Usuário</th>
                   </tr>
                 </thead>
                 <tbody>
                   {linhas.map((m) => (
                     <tr key={m.id}>
-                      <td className="whitespace-nowrap text-xs">{dataHora(m.criado_em)}</td>
+                      <td className="whitespace-nowrap text-xs">{dataHora(m.data_hora ?? m.criado_em)}</td>
                       <td>
                         <TipoBadge tipo={m.tipo} />
                       </td>
@@ -246,7 +265,12 @@ function RelMovimentacoes() {
                       <td className="tabular text-right">
                         <span className="text-suave">{m.saldo_antes}</span> → {m.saldo_apos}
                       </td>
-                      <td>{m.nf_numero ?? ''}</td>
+                      <td className="text-xs">
+                        <PlataformaTag plataforma={m.plataforma} />
+                        {m.numero_pedido && <div>Pedido {m.numero_pedido}</div>}
+                        {m.nf_numero && <div className="text-suave">NF {m.nf_numero}</div>}
+                        {m.cliente_nome && <div className="text-suave">{m.cliente_nome}</div>}
+                      </td>
                       <td className="whitespace-nowrap text-xs">{m.usuario_nome}</td>
                     </tr>
                   ))}
