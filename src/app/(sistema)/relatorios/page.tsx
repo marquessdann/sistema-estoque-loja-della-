@@ -5,7 +5,7 @@ import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { LojaTag } from '@/components/loja';
 import { ProdutoBusca } from '@/components/produto-busca';
-import { Campo, Carregando, TipoBadge, Titulo, Vazio } from '@/components/ui';
+import { Campo, Carregando, SemPermissao, TipoBadge, Titulo, Vazio } from '@/components/ui';
 import { buscarTudo, useDados } from '@/lib/dados';
 import { mensagemErro } from '@/lib/erros';
 import { exportarExcel, exportarPDF, type Coluna } from '@/lib/exportar';
@@ -30,6 +30,8 @@ type Aba = 'movimentacoes' | 'posicao' | 'baixo';
 
 export default function Relatorios() {
   const [aba, setAba] = useState<Aba>('movimentacoes');
+  const { pode } = useDados();
+  if (!pode('relatorios')) return <SemPermissao texto="Você não tem permissão para ver relatórios." />;
   return (
     <div className="space-y-4">
       <Titulo sub="Filtre, confira na tela e exporte em Excel ou PDF.">Relatórios</Titulo>
@@ -121,7 +123,9 @@ function RelMovimentacoes() {
     { titulo: 'Produto', valor: (m) => m.produto_nome, largura: 40 },
     { titulo: 'Qtd.', valor: (m) => m.quantidade, formato: 'inteiro', largura: 7 },
     { titulo: 'Custo un.', valor: (m) => (m.custo_unitario != null ? Number(m.custo_unitario) : null), formato: 'moeda', largura: 11 },
-    { titulo: 'Saldo após', valor: (m) => m.saldo_apos, formato: 'inteiro', largura: 10 },
+    { titulo: 'Saldo antes', valor: (m) => m.saldo_antes, formato: 'inteiro', largura: 10 },
+    { titulo: 'Saldo depois', valor: (m) => m.saldo_apos, formato: 'inteiro', largura: 10 },
+    { titulo: 'Data do fato', valor: (m) => fmtData(m.data_referencia), largura: 11 },
     { titulo: 'NF', valor: (m) => m.nf_numero ?? '', largura: 10 },
     { titulo: 'Usuário', valor: (m) => m.usuario_nome, largura: 16 },
   ];
@@ -216,7 +220,7 @@ function RelMovimentacoes() {
                     <th>Loja</th>
                     <th>Produto</th>
                     <th className="text-right">Qtd.</th>
-                    <th className="text-right">Saldo</th>
+                    <th className="text-right">Antes → depois</th>
                     <th>NF</th>
                     <th>Usuário</th>
                   </tr>
@@ -239,7 +243,9 @@ function RelMovimentacoes() {
                         {m.quantidade > 0 ? '+' : ''}
                         {m.quantidade}
                       </td>
-                      <td className="tabular text-right">{m.saldo_apos}</td>
+                      <td className="tabular text-right">
+                        <span className="text-suave">{m.saldo_antes}</span> → {m.saldo_apos}
+                      </td>
                       <td>{m.nf_numero ?? ''}</td>
                       <td className="whitespace-nowrap text-xs">{m.usuario_nome}</td>
                     </tr>
@@ -267,7 +273,7 @@ function RelPosicao() {
     return l;
   }, [produtos, categoria, soComSaldo]);
 
-  const total = (p: Produto) => p.estoques.reduce((s, e) => s + e.saldo, 0);
+  const total = (p: Produto) => lojas.reduce((s, l) => s + estoqueNaLoja(p, l.id).saldo, 0);
   const colunas: Coluna<Produto>[] = [
     { titulo: 'SKU', valor: (p) => p.sku, largura: 12 },
     { titulo: 'Produto', valor: (p) => p.nome, largura: 40 },

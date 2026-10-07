@@ -29,6 +29,8 @@ export default function PaginaLogin() {
       setOcupado(false);
       return toast.error('Seu usuário está desativado. Fale com o administrador.');
     }
+    // a cada login a pessoa escolhe de novo o estoque (com a senha do estoque)
+    await sb.rpc('sair_loja');
     window.location.href = '/';
   }
 

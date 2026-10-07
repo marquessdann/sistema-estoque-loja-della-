@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { LojaTag } from '@/components/loja';
 import { Campo, Carregando, Titulo, Vazio } from '@/components/ui';
-import { buscarTudo, useDados } from '@/lib/dados';
+import { buscarTudo, CAMPOS_LOJA, useDados } from '@/lib/dados';
 import { mensagemErro } from '@/lib/erros';
 import { exportarExcel, type Aba } from '@/lib/exportar';
 import { dataHora } from '@/lib/formato';
@@ -43,6 +43,8 @@ function Backup() {
         ['Produtos', 'produtos', 'id'],
         ['Saldos por loja', 'produto_loja', 'produto_id'],
         ['Lojas', 'lojas', 'id'],
+        ['Transferências', 'vw_transferencias', 'id'],
+        ['Itens de transferências', 'vw_transferencia_itens', 'transferencia_id'],
         ['Operações', 'vw_operacoes', 'id'],
         ['Movimentações', 'vw_movimentacoes', 'id'],
         ['Notas fiscais', 'vw_notas', 'id'],
@@ -55,7 +57,7 @@ function Backup() {
       const abas: Aba<Record<string, unknown>>[] = [];
       for (const [nome, tabela, ordem] of tabelas) {
         const linhas = await buscarTudo<Record<string, unknown>>((de, ate) =>
-          sb.from(tabela).select('*').order(ordem).range(de, ate),
+          sb.from(tabela).select(tabela === 'lojas' ? CAMPOS_LOJA : '*').order(ordem).range(de, ate),
         );
         const chaves = linhas.length ? Object.keys(linhas[0]) : ['(vazio)'];
         abas.push({
@@ -98,38 +100,57 @@ function Backup() {
 
 // ---------------------------------------------------------------
 function Lojas() {
-  const { lojas, recarregar } = useDados();
-  const [edicao, setEdicao] = useState<Record<number, Pick<Loja, 'nome' | 'cor'>>>({});
+  const { recarregar } = useDados();
+  const [lista, setLista] = useState<Loja[]>([]);
+  const [edicao, setEdicao] = useState<Record<number, Pick<Loja, 'nome' | 'cor' | 'ativa'>>>({});
+  const [nova, setNova] = useState({ nome: '', cor: '#22AA55' });
+  const [senhas, setSenhas] = useState<Record<number, string>>({});
 
-  useEffect(() => {
-    setEdicao(Object.fromEntries(lojas.map((l) => [l.id, { nome: l.nome, cor: l.cor }])));
-  }, [lojas]);
-
-  async function salvar(id: number) {
-    const v = edicao[id];
-    if (!v.nome.trim()) return toast.error('Informe o nome da loja.');
-    const { error } = await supabaseNavegador().from('lojas').update({ nome: v.nome.trim().toUpperCase(), cor: v.cor }).eq('id', id);
+  async function trocarSenha(l: Loja) {
+    const senha = senhas[l.id] ?? '';
+    if (senha.length < 6) return toast.error('A senha do estoque precisa ter pelo menos 6 caracteres.');
+    const { error } = await supabaseNavegador().rpc('definir_senha_loja', { p_loja: l.id, p_senha: senha });
     if (error) return toast.error(mensagemErro(error));
+    setSenhas({ ...senhas, [l.id]: '' });
+    toast.success(`Senha do estoque ${l.nome} alterada. Passe a nova senha para a equipe.`);
+  }
+
+  const carregar = useCallback(async () => {
+    const { data } = await supabaseNavegador().from('lojas').select(CAMPOS_LOJA).order('ordem');
+    const l = (data ?? []) as Loja[];
+    setLista(l);
+    setEdicao(Object.fromEntries(l.map((x) => [x.id, { nome: x.nome, cor: x.cor, ativa: x.ativa }])));
+  }, []);
+  useEffect(() => {
+    carregar();
+  }, [carregar]);
+
+  async function salvar(id: number | null, v: Pick<Loja, 'nome' | 'cor' | 'ativa'>) {
+    if (!v.nome.trim()) return toast.error('Informe o nome da loja.');
+    if (id && !v.ativa && !window.confirm(`Desativar a loja ${v.nome}? Ela some das telas de lançamento.`)) return;
+    const { error } = await supabaseNavegador().rpc('salvar_loja', { p: { id, nome: v.nome, cor: v.cor, ativa: v.ativa } });
+    if (error) return toast.error(mensagemErro(error));
+    toast.success(id ? 'Loja atualizada!' : 'Loja criada!');
+    setNova({ nome: '', cor: '#22AA55' });
+    await carregar();
     await recarregar();
-    toast.success('Loja atualizada!');
   }
 
   return (
     <div className="cartao space-y-3">
       <h2 className="font-titulo font-bold">Lojas (estoques)</h2>
-      <p className="text-sm text-suave">Cada loja tem uma cor de etiqueta, para ninguém lançar na loja errada.</p>
+      <p className="text-sm text-suave">
+        Cada loja tem uma cor de etiqueta e uma <b>senha do estoque</b>, pedida quando alguém entra nela (padrão: Galaxys2!). Uma
+        loja só pode ser desativada com estoque zerado.
+      </p>
       <div className="grid gap-3 md:grid-cols-2">
-        {lojas.map((l) => {
-          const v = edicao[l.id] ?? { nome: l.nome, cor: l.cor };
+        {lista.map((l) => {
+          const v = edicao[l.id] ?? { nome: l.nome, cor: l.cor, ativa: l.ativa };
           return (
-            <div key={l.id} className="space-y-2 rounded-lg border border-borda bg-painel2 p-3">
-              <LojaTag loja={v} tamanho="lg" />
+            <div key={l.id} className={`space-y-2 rounded-lg border border-borda bg-painel2 p-3 ${!l.ativa ? 'opacity-60' : ''}`}>
+              <LojaTag loja={v} tamanho="lg" /> {!l.ativa && <span className="text-xs text-rose-300">desativada</span>}
               <div className="flex gap-2">
-                <input
-                  className="campo"
-                  value={v.nome}
-                  onChange={(e) => setEdicao({ ...edicao, [l.id]: { ...v, nome: e.target.value } })}
-                />
+                <input className="campo" value={v.nome} onChange={(e) => setEdicao({ ...edicao, [l.id]: { ...v, nome: e.target.value } })} />
                 <input
                   type="color"
                   className="h-11 w-14 shrink-0 cursor-pointer rounded-lg border border-borda bg-painel2"
@@ -138,12 +159,48 @@ function Lojas() {
                   title="Cor da etiqueta"
                 />
               </div>
-              <button className="btn-secundario w-full" onClick={() => salvar(l.id)}>
-                Salvar
-              </button>
+              <div className="flex gap-2">
+                <button className="btn-secundario flex-1" onClick={() => salvar(l.id, { ...v, ativa: l.ativa })}>
+                  Salvar
+                </button>
+                <button
+                  className={`btn-secundario ${l.ativa ? 'text-rose-300' : 'text-emerald-300'}`}
+                  onClick={() => salvar(l.id, { ...v, ativa: !l.ativa })}
+                >
+                  {l.ativa ? 'Desativar' : 'Reativar'}
+                </button>
+              </div>
+              <div className="flex gap-2 border-t border-borda pt-2">
+                <input
+                  type="password"
+                  className="campo"
+                  placeholder="Nova senha do estoque"
+                  autoComplete="new-password"
+                  value={senhas[l.id] ?? ''}
+                  onChange={(e) => setSenhas({ ...senhas, [l.id]: e.target.value })}
+                />
+                <button className="btn-secundario shrink-0" onClick={() => trocarSenha(l)}>
+                  Trocar senha
+                </button>
+              </div>
             </div>
           );
         })}
+      </div>
+      <div className="flex flex-wrap items-end gap-2 rounded-lg border border-dashed border-borda p-3">
+        <Campo rotulo="Nova loja" className="min-w-[200px] flex-1">
+          <input className="campo" placeholder="Ex.: DELLA FULL SHOPEE" value={nova.nome} onChange={(e) => setNova({ ...nova, nome: e.target.value })} />
+        </Campo>
+        <input
+          type="color"
+          className="h-11 w-14 shrink-0 cursor-pointer rounded-lg border border-borda bg-painel2"
+          value={nova.cor}
+          onChange={(e) => setNova({ ...nova, cor: e.target.value.toUpperCase() })}
+          title="Cor da etiqueta"
+        />
+        <button className="btn-secundario" onClick={() => salvar(null, { ...nova, ativa: true })}>
+          <Plus className="h-4 w-4" /> Criar loja
+        </button>
       </div>
     </div>
   );
@@ -287,6 +344,7 @@ interface RegistroAuditoria {
 }
 
 const NOMES_TABELA: Record<string, string> = {
+  transferencias: 'transferência',
   produtos: 'produto',
   usuarios: 'usuário',
   lojas: 'loja',

@@ -6,6 +6,29 @@ import { supabaseAdmin, supabaseServidor } from '@/lib/supabase/server';
 
 const LIMITE_USUARIOS = 3;
 
+// Só estas colunas de permissão podem ser alteradas (lista fechada: nada além disso passa)
+const PERMISSOES = [
+  'perm_produtos',
+  'perm_entrada',
+  'perm_saida',
+  'perm_transferir',
+  'perm_inventario',
+  'perm_estornar',
+  'perm_relatorios',
+  'perm_historico',
+] as const;
+
+function lerPermissoes(entrada: unknown) {
+  const saida: Record<string, boolean> = {};
+  if (entrada && typeof entrada === 'object') {
+    for (const k of PERMISSOES) {
+      const v = (entrada as Record<string, unknown>)[k];
+      if (typeof v === 'boolean') saida[k] = v;
+    }
+  }
+  return saida;
+}
+
 async function exigirAdmin() {
   const sb = await supabaseServidor();
   const {
@@ -34,8 +57,9 @@ const erro = (mensagem: string, status = 400) => NextResponse.json({ erro: mensa
 export async function POST(req: Request) {
   const eu = await exigirAdmin();
   if (!eu) return erro('Apenas o administrador pode cadastrar usuários.', 403);
-  const { nome, email, senha, perfil } = await req.json();
+  const { nome, email, senha, perfil, permissoes } = await req.json();
   if (!nome?.trim() || !email?.trim()) return erro('Informe nome e e-mail.');
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email).trim())) return erro('E-mail inválido.');
   if (!senha || String(senha).length < 8) return erro('A senha precisa ter pelo menos 8 caracteres.');
 
   const admin = supabaseAdmin();
@@ -44,20 +68,26 @@ export async function POST(req: Request) {
     return erro(`Limite de ${LIMITE_USUARIOS} usuários atingido. Desative um usuário antes de cadastrar outro.`, 409);
   }
 
+  // convite: o banco só aceita login novo que tenha convite do administrador
+  const emailLimpo = String(email).trim().toLowerCase();
+  await admin.from('usuarios_convites').upsert({ email: emailLimpo, criado_em: new Date().toISOString() });
   const { data, error } = await admin.auth.admin.createUser({
-    email: String(email).trim().toLowerCase(),
+    email: emailLimpo,
     password: String(senha),
     email_confirm: true,
     user_metadata: { nome: String(nome).trim() },
   });
   if (error) {
+    await admin.from('usuarios_convites').delete().eq('email', emailLimpo);
     if (/already been registered|already exists/i.test(error.message)) return erro('Já existe um usuário com este e-mail.');
-    if (/Database error/i.test(error.message)) return erro('Não foi possível criar: limite de 3 usuários atingido.');
+    if (/Database error/i.test(error.message))
+      return erro('O banco recusou o cadastro (limite de 3 usuários ativos ou e-mail já usado). Confira e tente de novo.');
     return erro(error.message);
   }
-  // o banco cria o usuário como "operador"; se pediu admin, ajusta
-  if (perfil === 'admin') {
-    await admin.from('usuarios').update({ perfil: 'admin' }).eq('id', data.user.id);
+  // o banco cria o usuário como "operador"; aplica perfil e permissões escolhidos
+  const ajustes = { ...lerPermissoes(permissoes), ...(perfil === 'admin' ? { perfil: 'admin' } : {}) };
+  if (Object.keys(ajustes).length) {
+    await admin.from('usuarios').update(ajustes).eq('id', data.user.id);
   }
   await auditar(eu, 'criou usuário', data.user.id, { nome, email, perfil: perfil === 'admin' ? 'admin' : 'operador' });
   return NextResponse.json({ ok: true });
@@ -67,11 +97,12 @@ export async function POST(req: Request) {
 export async function PATCH(req: Request) {
   const eu = await exigirAdmin();
   if (!eu) return erro('Apenas o administrador pode alterar usuários.', 403);
-  const { id, nome, perfil, ativo, senha } = await req.json();
+  const { id, nome, perfil, ativo, senha, permissoes } = await req.json();
   if (!id) return erro('Usuário não informado.');
 
   const admin = supabaseAdmin();
-  const mudancas: Record<string, unknown> = {};
+  const mudancas: Record<string, unknown> = { ...lerPermissoes(permissoes) };
+  if (perfil && id === eu.id && perfil !== 'admin') return erro('Você não pode tirar o seu próprio acesso de administrador.');
   if (typeof nome === 'string' && nome.trim()) mudancas.nome = nome.trim();
   if (perfil === 'admin' || perfil === 'operador') mudancas.perfil = perfil;
   if (typeof ativo === 'boolean') {

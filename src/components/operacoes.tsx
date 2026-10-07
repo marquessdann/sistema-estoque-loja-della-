@@ -1,6 +1,7 @@
 'use client';
 
 import { ArrowRight, FileDown, FileSpreadsheet, Paperclip, Undo2 } from 'lucide-react';
+import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { useDados } from '@/lib/dados';
@@ -59,7 +60,7 @@ export function LinhaOperacao({ op, aoAbrir }: { op: OperacaoResumo; aoAbrir: ()
 
 // Janela com todos os detalhes de uma operação (itens, nota, estorno)
 export function DetalheOperacao({ id, aoFechar }: { id: number | null; aoFechar: () => void }) {
-  const { versao } = useDados();
+  const { versao, pode, lojaAtual } = useDados();
   const [op, setOp] = useState<OperacaoResumo | null>(null);
   const [itens, setItens] = useState<MovimentacaoLinha[]>([]);
   const [nota, setNota] = useState<NotaFiscal | null>(null);
@@ -101,7 +102,9 @@ export function DetalheOperacao({ id, aoFechar }: { id: number | null; aoFechar:
     setMotivo('');
   }
 
-  const podeEstornar = op && op.tipo !== 'estorno' && !op.estornada_por;
+  // só estorna lançamento do estoque em que a pessoa está
+  const doEstoqueAtual = itens.length > 0 && itens.every((m) => m.loja_id === lojaAtual?.id);
+  const podeEstornar = op && op.tipo !== 'estorno' && !op.estornada_por && !op.transferencia_id && pode('estornar') && doEstoqueAtual;
 
   return (
     <Modal aberto={id !== null} aoFechar={aoFechar} titulo={op ? `${TIPOS[op.tipo].rotulo} nº ${op.id}` : 'Carregando...'} largura="max-w-3xl">
@@ -110,7 +113,17 @@ export function DetalheOperacao({ id, aoFechar }: { id: number | null; aoFechar:
       ) : (
         <div className="space-y-4 text-sm">
           <div className="grid gap-3 sm:grid-cols-2">
-            <Info rotulo="Data e hora">{dataHora(op.criado_em)}</Info>
+            <Info rotulo="Registrado em">{dataHora(op.criado_em)}</Info>
+            {op.data_referencia && fmtData(op.data_referencia) !== fmtData(op.criado_em) && (
+              <Info rotulo="Data informada do fato">{fmtData(op.data_referencia)}</Info>
+            )}
+            {op.transferencia_id && (
+              <Info rotulo="Transferência">
+                <Link href={`/transferencias/${op.transferencia_id}`} className="text-dourado underline">
+                  Ver transferência nº {op.transferencia_id}
+                </Link>
+              </Info>
+            )}
             <Info rotulo="Feito por">{op.usuario_nome}</Info>
             <Info rotulo="Loja(s)">
               <LojasDaOperacao op={op} />
@@ -163,7 +176,7 @@ export function DetalheOperacao({ id, aoFechar }: { id: number | null; aoFechar:
                   <th>Produto</th>
                   <th>Loja</th>
                   <th className="text-right">Qtd.</th>
-                  <th className="text-right">Saldo após</th>
+                  <th className="text-right">Saldo antes → depois</th>
                   <th className="text-right">Custo un.</th>
                 </tr>
               </thead>
@@ -181,7 +194,9 @@ export function DetalheOperacao({ id, aoFechar }: { id: number | null; aoFechar:
                       {m.quantidade > 0 ? '+' : ''}
                       {m.quantidade}
                     </td>
-                    <td className="tabular text-right">{m.saldo_apos}</td>
+                    <td className="tabular text-right">
+                      <span className="text-suave">{m.saldo_antes}</span> → {m.saldo_apos}
+                    </td>
                     <td className="tabular text-right text-suave">{m.custo_unitario != null ? moeda(m.custo_unitario) : '—'}</td>
                   </tr>
                 ))}
@@ -231,11 +246,12 @@ function Info({ rotulo, children, className = '' }: { rotulo: string; children: 
 
 // Lista de operações com filtros (usada em Movimentações e Histórico de transferências)
 export function ListaOperacoes({ tipoFixo }: { tipoFixo?: TipoOperacao }) {
-  const { lojas, versao, produtoPorId } = useDados();
+  const { versao, produtoPorId, pode, lojaAtual } = useDados();
   const [de, setDe] = useState(hojeISO(-30));
   const [ate, setAte] = useState(hojeISO());
   const [tipo, setTipo] = useState<TipoOperacao | ''>(tipoFixo ?? '');
-  const [lojaId, setLojaId] = useState<number | ''>('');
+  // cada estoque vê as próprias movimentações
+  const lojaId = lojaAtual?.id ?? '';
   const [nf, setNf] = useState('');
   const [produtoId, setProdutoId] = useState<number | null>(null);
   const [lista, setLista] = useState<OperacaoResumo[] | null>(null);
@@ -261,7 +277,8 @@ export function ListaOperacoes({ tipoFixo }: { tipoFixo?: TipoOperacao }) {
     if (lojaId) consulta = consulta.or(`loja_origem_id.eq.${lojaId},loja_destino_id.eq.${lojaId}`);
     if (nf.trim()) consulta = consulta.ilike('nf_numero', `%${nf.trim().replace(/[%_,()]/g, '')}%`);
     if (produtoId) {
-      const { data: movs } = await sb.from('movimentacoes').select('operacao_id').eq('produto_id', produtoId).limit(2000);
+      // (os 300 lançamentos mais recentes do produto: limite do tamanho do endereço da consulta)
+      const { data: movs } = await sb.from('movimentacoes').select('operacao_id').eq('produto_id', produtoId).order('id', { ascending: false }).limit(300);
       const ids = [...new Set((movs ?? []).map((m) => m.operacao_id))];
       if (ids.length === 0) return setLista([]);
       consulta = consulta.in('id', ids);
@@ -298,7 +315,8 @@ export function ListaOperacoes({ tipoFixo }: { tipoFixo?: TipoOperacao }) {
       { titulo: 'SKU', valor: (m) => m.sku, largura: 12 },
       { titulo: 'Produto', valor: (m) => m.produto_nome, largura: 40 },
       { titulo: 'Qtd.', valor: (m) => m.quantidade, formato: 'inteiro', largura: 7 },
-      { titulo: 'Saldo após', valor: (m) => m.saldo_apos, formato: 'inteiro', largura: 10 },
+      { titulo: 'Saldo antes', valor: (m) => m.saldo_antes, formato: 'inteiro', largura: 10 },
+      { titulo: 'Saldo depois', valor: (m) => m.saldo_apos, formato: 'inteiro', largura: 10 },
       { titulo: 'NF', valor: (m) => m.nf_numero ?? '', largura: 10 },
       { titulo: 'Usuário', valor: (m) => m.usuario_nome, largura: 16 },
     ];
@@ -332,16 +350,10 @@ export function ListaOperacoes({ tipoFixo }: { tipoFixo?: TipoOperacao }) {
             </select>
           </Campo>
         )}
-        <Campo rotulo="Loja" className="col-span-1">
-          <select className="campo" value={lojaId} onChange={(e) => setLojaId(e.target.value ? Number(e.target.value) : '')}>
-            <option value="">Todas</option>
-            {lojas.map((l) => (
-              <option key={l.id} value={l.id}>
-                {l.nome}
-              </option>
-            ))}
-          </select>
-        </Campo>
+        <div className="col-span-1">
+          <span className="rotulo">Estoque</span>
+          <LojaTag loja={lojaAtual} />
+        </div>
         <Campo rotulo="Nº da nota fiscal" className={tipoFixo ? 'col-span-2' : 'col-span-2 md:col-span-2'}>
           <input className="campo" value={nf} onChange={(e) => setNf(e.target.value)} placeholder="Buscar pelo número" />
         </Campo>
@@ -362,6 +374,11 @@ export function ListaOperacoes({ tipoFixo }: { tipoFixo?: TipoOperacao }) {
         </div>
       </div>
 
+      {!pode('historico') && (
+        <p className="rounded-lg border border-borda bg-painel p-3 text-sm text-suave">
+          🔒 Você está vendo apenas os lançamentos feitos por você.
+        </p>
+      )}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="text-sm text-suave">{lista ? `${lista.length} lançamento(s)` : ''}</span>
         <div className="flex gap-2">

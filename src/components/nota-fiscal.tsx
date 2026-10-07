@@ -152,6 +152,21 @@ export async function anexarNaOperacao(operacaoId: number, anexo: File | null) {
   }
 }
 
+// Igual ao anterior, para transferências
+export async function anexarNaTransferencia(transferenciaId: number, anexo: File | null) {
+  if (!anexo) return;
+  const sb = supabaseNavegador();
+  const { data: t } = await sb.from('transferencias').select('nota_fiscal_id').eq('id', transferenciaId).single();
+  if (!t?.nota_fiscal_id) return;
+  try {
+    const r = await enviarAnexoNota(anexo);
+    const { error } = await sb.from('notas_fiscais').update(r).eq('id', t.nota_fiscal_id);
+    if (error) throw error;
+  } catch {
+    toast.warning('A transferência foi gravada, mas o anexo não foi enviado. Anexe de novo pela tela Notas fiscais.');
+  }
+}
+
 // Abre o anexo de uma nota (link temporário e seguro)
 export async function abrirAnexoNota(caminho: string) {
   const { data, error } = await supabaseNavegador().storage.from('notas').createSignedUrl(caminho, 120);

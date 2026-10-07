@@ -26,7 +26,7 @@ interface LinhaImport {
 }
 
 export default function ImportarProdutos() {
-  const { produtos, lojas, categoriaNome, marcaNome, recarregar } = useDados();
+  const { produtos, lojas, categoriaNome, marcaNome, recarregar, pode } = useDados();
   const [linhas, setLinhas] = useState<LinhaImport[] | null>(null);
   const [nomeArquivo, setNomeArquivo] = useState('');
   const [confirmar, setConfirmar] = useState(false);
@@ -201,6 +201,7 @@ export default function ImportarProdutos() {
           </button>
         </div>
 
+        {pode('produtos') ? (
         <div className="cartao space-y-3">
           <h2 className="font-titulo font-bold">2. Importar</h2>
           <ul className="list-inside list-disc text-sm text-suave">
@@ -222,6 +223,9 @@ export default function ImportarProdutos() {
             />
           </label>
         </div>
+        ) : (
+          <div className="cartao text-sm text-suave">🔒 Importar planilha exige permissão para cadastrar produtos.</div>
+        )}
       </div>
 
       {linhas && (

@@ -1,22 +1,26 @@
 'use client';
 
 import { ClipboardCheck, FileDown, FileSpreadsheet, Search } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { FaixaLoja, LojaTag, SeletorLoja } from '@/components/loja';
-import { Campo, CampoQuantidade, Confirmar, Titulo, Vazio } from '@/components/ui';
+import { LojaTag } from '@/components/loja';
+import { Campo, CampoQuantidade, Confirmar, SemPermissao, Titulo, Vazio } from '@/components/ui';
 import { useDados } from '@/lib/dados';
 import { mensagemErro } from '@/lib/erros';
 import { exportarExcel, exportarPDF, type Coluna } from '@/lib/exportar';
-import { buscarProdutos, estoqueNaLoja } from '@/lib/formato';
+import { buscarProdutos, estoqueNaLoja, novaChave } from '@/lib/formato';
 import { supabaseNavegador } from '@/lib/supabase/client';
 import type { Produto } from '@/lib/tipos';
 
 const MOTIVOS = ['Inventário geral', 'Inventário parcial', 'Saldo inicial', 'Correção de lançamento', 'Outro'];
 
 export default function Inventario() {
-  const { lojas, produtos, loja, categorias, categoriaNome } = useDados();
-  const [lojaId, setLojaId] = useState<number | null>(null);
+  const { lojaAtual, produtos, loja, categorias, categoriaNome, pode } = useDados();
+  const chave = useRef(novaChave());
+  // saldo que aparecia na tela quando cada produto foi contado (se mudar no meio, o sistema avisa)
+  const [saldoVisto, setSaldoVisto] = useState<Record<number, number>>({});
+  // sempre o estoque em que a pessoa entrou
+  const lojaId = lojaAtual?.id ?? null;
   const [contagem, setContagem] = useState<Record<number, number | ''>>({});
   const [termo, setTermo] = useState('');
   const [categoria, setCategoria] = useState<number | ''>('');
@@ -41,23 +45,27 @@ export default function Inventario() {
     .filter((d) => d.contado !== d.sistema);
   const motivoFinal = motivo === 'Outro' ? motivoOutro.trim() : motivo;
 
-  function trocarLoja(id: number) {
-    if (contados.length && !window.confirm('Trocar de loja apaga as contagens digitadas. Continuar?')) return;
-    setContagem({});
-    setLojaId(id);
-  }
 
   async function gravar() {
     setOcupado(true);
     const { data, error } = await supabaseNavegador().rpc('registrar_ajuste', {
-      p_loja_id: lojaId,
-      p_itens: contados.map((p) => ({ produto_id: p.id, quantidade_contada: Number(contagem[p.id]) })),
-      p_motivo: motivoFinal,
-      p_observacao: obs,
+      p: {
+        loja_id: lojaId,
+        itens: contados.map((p) => ({
+          produto_id: p.id,
+          quantidade_contada: Number(contagem[p.id]),
+          saldo_esperado: saldoVisto[p.id] ?? saldo(p),
+        })),
+        motivo: motivoFinal,
+        observacao: obs,
+        chave: chave.current,
+      },
     });
     setOcupado(false);
     setConfirmar(false);
-    if (error) return toast.error(mensagemErro(error));
+    if (error) return toast.error(mensagemErro(error), { duration: 10000 });
+    chave.current = novaChave();
+    setSaldoVisto({});
     if (data === null) toast.success('Contagem conferida: nenhuma diferença, nada foi alterado.');
     else toast.success(`Ajuste de inventário nº ${data} registrado!`);
     setContagem({});
@@ -77,14 +85,12 @@ export default function Inventario() {
     else await exportarPDF('folha-contagem', `Folha de contagem — ${lojaEscolhida.nome}`, 'Anote a quantidade contada de cada produto', colunas, visiveis);
   }
 
+  if (!pode('inventario')) return <SemPermissao texto="Você não tem permissão para fazer inventário." />;
+
   return (
     <div className="space-y-4">
-      <FaixaLoja loja={lojaEscolhida} texto="Inventário de" />
       <Titulo sub="Conte o que existe de verdade na prateleira e digite. O sistema lança só as diferenças.">Inventário (ajuste de estoque)</Titulo>
 
-      <div className="cartao">
-        <SeletorLoja lojas={lojas} valor={lojaId} aoMudar={trocarLoja} rotulo="Qual loja você está contando?" />
-      </div>
 
       {lojaEscolhida && (
         <>
@@ -123,7 +129,7 @@ export default function Inventario() {
                   <tr>
                     <th>Produto</th>
                     <th className="text-right">Sistema</th>
-                    <th className="w-32 text-right">Contado</th>
+                    <th className="w-40 text-center">Contado</th>
                     <th className="text-right">Diferença</th>
                   </tr>
                 </thead>
@@ -141,8 +147,10 @@ export default function Inventario() {
                         <td>
                           <CampoQuantidade
                             valor={c ?? ''}
-                            aoMudar={(v) => setContagem((atual) => ({ ...atual, [p.id]: v }))}
-                            className="py-1.5"
+                            aoMudar={(v) => {
+                              setContagem((atual) => ({ ...atual, [p.id]: v }));
+                              setSaldoVisto((atual) => (p.id in atual ? atual : { ...atual, [p.id]: saldo(p) }));
+                            }}
                           />
                         </td>
                         <td

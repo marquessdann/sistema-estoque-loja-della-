@@ -6,28 +6,56 @@ import { useEffect, useMemo, useState } from 'react';
 import { LojaTag } from '@/components/loja';
 import { Titulo, Vazio } from '@/components/ui';
 import { urlFoto, useDados } from '@/lib/dados';
-import { abaixoDoMinimo, buscarProdutos, estoqueNaLoja, moeda } from '@/lib/formato';
+import { abaixoDoMinimo, buscarProdutos, estoqueNaLoja, moeda, saldoTotal } from '@/lib/formato';
+import type { Produto } from '@/lib/tipos';
+
+const POR_PAGINA = 40;
+type Ordem = 'nome' | 'menor' | 'maior' | 'recentes' | 'sku';
 
 export default function ListaProdutos() {
-  const { produtos, lojas, categorias, categoriaNome, marcaNome } = useDados();
+  const { produtos, lojas, categorias, categoriaNome, marcaNome, pode } = useDados();
   const [termo, setTermo] = useState('');
   const [situacao, setSituacao] = useState<'ativos' | 'inativos' | 'todos'>('ativos');
   const [categoria, setCategoria] = useState<number | ''>('');
-  const [baixo, setBaixo] = useState<number | ''>('');
+  const [filtroEstoque, setFiltroEstoque] = useState('');
+  const [ordem, setOrdem] = useState<Ordem>('nome');
+  const [limite, setLimite] = useState(POR_PAGINA);
 
   useEffect(() => {
     const b = new URLSearchParams(window.location.search).get('baixo');
-    if (b) setBaixo(Number(b));
+    if (b) setFiltroEstoque(`baixo-${b}`);
   }, []);
+  // ao mudar filtros, volta para a primeira "página"
+  useEffect(() => setLimite(POR_PAGINA), [termo, situacao, categoria, filtroEstoque, ordem]);
 
+  const ids = lojas.map((l) => l.id);
   const filtrados = useMemo(() => {
     let l = produtos;
     if (situacao === 'ativos') l = l.filter((p) => p.ativo);
     if (situacao === 'inativos') l = l.filter((p) => !p.ativo);
     if (categoria) l = l.filter((p) => p.categoria_id === categoria);
-    if (baixo) l = l.filter((p) => abaixoDoMinimo(p, baixo));
-    return buscarProdutos(l, termo);
-  }, [produtos, termo, situacao, categoria, baixo]);
+    if (filtroEstoque.startsWith('baixo-')) {
+      const lojaId = Number(filtroEstoque.split('-')[1]);
+      l = l.filter((p) => abaixoDoMinimo(p, lojaId));
+    } else if (filtroEstoque.startsWith('sem-')) {
+      const lojaId = Number(filtroEstoque.split('-')[1]);
+      l = l.filter((p) => estoqueNaLoja(p, lojaId).saldo === 0);
+    } else if (filtroEstoque === 'zerado') {
+      l = l.filter((p) => saldoTotal(p, ids) === 0);
+    }
+    l = buscarProdutos(l, termo);
+    const ordenar: Record<Ordem, (a: Produto, b: Produto) => number> = {
+      nome: (a, b) => a.nome.localeCompare(b.nome, 'pt-BR'),
+      sku: (a, b) => a.sku.localeCompare(b.sku, 'pt-BR'),
+      menor: (a, b) => saldoTotal(a, ids) - saldoTotal(b, ids),
+      maior: (a, b) => saldoTotal(b, ids) - saldoTotal(a, ids),
+      recentes: (a, b) => b.criado_em.localeCompare(a.criado_em),
+    };
+    return [...l].sort(ordenar[ordem]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [produtos, termo, situacao, categoria, filtroEstoque, ordem, lojas]);
+
+  const visiveis = filtrados.slice(0, limite);
 
   return (
     <div>
@@ -36,11 +64,13 @@ export default function ListaProdutos() {
         acoes={
           <>
             <Link href="/produtos/importar" className="btn-secundario">
-              <FileSpreadsheet className="h-4 w-4" /> Importar / Exportar
+              <FileSpreadsheet className="h-4 w-4" /> {pode('produtos') ? 'Importar / Exportar' : 'Exportar'}
             </Link>
-            <Link href="/produtos/novo" className="btn-principal">
-              <Plus className="h-4 w-4" /> Novo produto
-            </Link>
+            {pode('produtos') && (
+              <Link href="/produtos/novo" className="btn-principal">
+                <Plus className="h-4 w-4" /> Novo produto
+              </Link>
+            )}
           </>
         }
       >
@@ -58,13 +88,13 @@ export default function ListaProdutos() {
             autoFocus
           />
         </div>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-          <select className="campo" value={situacao} onChange={(e) => setSituacao(e.target.value as typeof situacao)}>
+        <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+          <select className="campo" value={situacao} onChange={(e) => setSituacao(e.target.value as typeof situacao)} aria-label="Situação">
             <option value="ativos">Somente ativos</option>
             <option value="inativos">Somente inativos</option>
             <option value="todos">Ativos e inativos</option>
           </select>
-          <select className="campo" value={categoria} onChange={(e) => setCategoria(e.target.value ? Number(e.target.value) : '')}>
+          <select className="campo" value={categoria} onChange={(e) => setCategoria(e.target.value ? Number(e.target.value) : '')} aria-label="Categoria">
             <option value="">Todas as categorias</option>
             {categorias.map((c) => (
               <option key={c.id} value={c.id}>
@@ -72,17 +102,26 @@ export default function ListaProdutos() {
               </option>
             ))}
           </select>
-          <select
-            className="campo col-span-2 sm:col-span-1"
-            value={baixo}
-            onChange={(e) => setBaixo(e.target.value ? Number(e.target.value) : '')}
-          >
-            <option value="">Qualquer saldo</option>
+          <select className="campo" value={filtroEstoque} onChange={(e) => setFiltroEstoque(e.target.value)} aria-label="Estoque">
+            <option value="">Qualquer estoque</option>
             {lojas.map((l) => (
-              <option key={l.id} value={l.id}>
+              <option key={`b${l.id}`} value={`baixo-${l.id}`}>
                 Abaixo do mínimo em {l.nome}
               </option>
             ))}
+            {lojas.map((l) => (
+              <option key={`s${l.id}`} value={`sem-${l.id}`}>
+                Sem estoque em {l.nome}
+              </option>
+            ))}
+            <option value="zerado">Sem estoque em nenhuma loja</option>
+          </select>
+          <select className="campo" value={ordem} onChange={(e) => setOrdem(e.target.value as Ordem)} aria-label="Ordenar">
+            <option value="nome">Ordenar: nome (A-Z)</option>
+            <option value="sku">Ordenar: SKU</option>
+            <option value="menor">Ordenar: menor estoque</option>
+            <option value="maior">Ordenar: maior estoque</option>
+            <option value="recentes">Ordenar: cadastrados por último</option>
           </select>
         </div>
       </div>
@@ -90,13 +129,15 @@ export default function ListaProdutos() {
       {filtrados.length === 0 ? (
         <Vazio>
           Nenhum produto encontrado.{' '}
-          <Link href="/produtos/novo" className="text-dourado underline">
-            Cadastrar um novo
-          </Link>
+          {pode('produtos') && (
+            <Link href="/produtos/novo" className="text-dourado underline">
+              Cadastrar um novo
+            </Link>
+          )}
         </Vazio>
       ) : (
         <div className="space-y-2">
-          {filtrados.map((p) => {
+          {visiveis.map((p) => {
             const foto = urlFoto(p.foto_path);
             return (
               <div
@@ -122,7 +163,9 @@ export default function ListaProdutos() {
                       {p.categoria_id && ` · ${categoriaNome(p.categoria_id)}`}
                       {p.marca_id && ` · ${marcaNome(p.marca_id)}`}
                     </div>
-                    <div className="text-xs text-suave">Venda {moeda(p.preco_venda)}</div>
+                    <div className="text-xs text-suave">
+                      Venda {moeda(p.preco_venda)} · Total {saldoTotal(p, lojas.map((l) => l.id))} {p.unidade}
+                    </div>
                   </div>
                 </Link>
                 <div className="flex items-center gap-2 sm:gap-3">
@@ -138,15 +181,18 @@ export default function ListaProdutos() {
                       >
                         <LojaTag loja={l} tamanho="sm" />
                         <span className={`font-titulo text-xl font-bold tabular ${baixoAqui ? 'text-rose-400' : ''}`}>{e.saldo}</span>
-                        <span className="text-[10px] text-suave">mín. {e.estoque_minimo}</span>
+                        <span className="text-[10px] text-suave">
+                          mín. {e.estoque_minimo}
+                        </span>
                       </div>
                     );
                   })}
-                  {p.ativo && (
+                  {p.ativo && pode('transferir') && (
                     <Link
                       href={`/transferencia?produto=${p.id}`}
                       className="btn-azul min-h-[60px] px-3"
                       title="Transferir entre lojas"
+                      aria-label={`Transferir ${p.nome}`}
                     >
                       <ArrowLeftRight className="h-5 w-5" />
                       <span className="hidden md:inline">Transferir</span>
@@ -156,6 +202,13 @@ export default function ListaProdutos() {
               </div>
             );
           })}
+          {filtrados.length > limite && (
+            <div className="pt-2 text-center">
+              <button className="btn-secundario" onClick={() => setLimite(limite + POR_PAGINA)}>
+                Mostrar mais ({filtrados.length - limite} restantes)
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

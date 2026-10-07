@@ -42,13 +42,16 @@ O código foi entregue na branch `claude/zen-maxwell-iujchd`. Para a Vercel publ
 2. Clique em **New query** (ou no **+**).
 3. No GitHub, abra o arquivo [`supabase/01_estrutura.sql`](../supabase/01_estrutura.sql), clique no botão **Copy raw file** (ícone de copiar), volte ao Supabase e cole na área de texto.
 4. Clique em **Run** (ou Ctrl+Enter). Deve aparecer **"Success. No rows returned"**.
-5. (Opcional) Para ter produtos de exemplo (pinças, navalha...), repita o processo com o arquivo [`supabase/02_dados_exemplo.sql`](../supabase/02_dados_exemplo.sql). Depois, se quiser, você pode inativar esses produtos.
+5. Repita o processo com o arquivo [`supabase/03_versao2_permissoes_transferencias.sql`](../supabase/03_versao2_permissoes_transferencias.sql) (estoque com senha, permissões, transferência e log de atividades). **Obrigatório.**
+6. (Opcional) Para ter produtos de exemplo (pinças, navalha...), repita com [`supabase/02_dados_exemplo.sql`](../supabase/02_dados_exemplo.sql). Depois, se quiser, você pode inativar ou excluir esses produtos.
+
+> **Já usa a versão 1?** Rode apenas o arquivo `03_...sql`: ele atualiza o banco sem apagar nenhum dado.
 
 As duas lojas, **DELLA ESTOQUE** (azul) e **DELLA FULL ML** (dourado), já são criadas pelo primeiro arquivo.
 
 ### 1.2 — Fechar o cadastro público (segurança)
 
-Só o administrador cria usuários, pelo próprio sistema. Por isso:
+Só o administrador cria usuários, pelo próprio sistema. O banco já recusa qualquer cadastro sem "convite" do administrador, mas feche também a porta no painel (segurança em dobro):
 
 1. Menu **Authentication > Sign In / Providers** (em algumas versões: **Authentication > Providers**, ou **Settings**).
 2. **Desligue** a opção **"Allow new users to sign up"** e clique em **Save**.
@@ -99,8 +102,8 @@ Isso é necessário para o link de "Esqueci minha senha" funcionar.
 ### 2.2 — Primeiro acesso
 
 1. Abra o endereço da Vercel no navegador (computador ou celular).
-2. Entre com o e-mail e a senha do passo 1.3.
-3. Vá em **Usuários** (menu da esquerda, ou **Mais** no celular). Corrija o seu nome em **Editar** e crie os outros 2 usuários.
+2. Entre com o e-mail e a senha do passo 1.3. Escolha o estoque e digite a **senha do estoque**: `Galaxys2!` (troque depois em **Configurações > Lojas**).
+3. Vá em **Usuários e permissões** (menu da esquerda, ou **Mais** no celular). Corrija o seu nome em **Editar** (ex.: Daniel) e crie os outros 2 usuários (ex.: Vinicius como Administrador e Antonio como Operador), marcando o que o operador pode fazer.
 
 💡 No celular, abra o sistema no navegador e use **"Adicionar à tela inicial"**. Ele fica com um ícone igual a um aplicativo.
 

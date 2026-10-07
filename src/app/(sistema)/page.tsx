@@ -12,23 +12,26 @@ import { supabaseNavegador } from '@/lib/supabase/client';
 import type { OperacaoResumo } from '@/lib/tipos';
 
 export default function Painel() {
-  const { produtos, lojas, versao, usuario } = useDados();
+  const { produtos, lojas, versao, usuario, pode, lojaAtual } = useDados();
   const [ultimas, setUltimas] = useState<OperacaoResumo[] | null>(null);
   const [aberta, setAberta] = useState<number | null>(null);
 
   useEffect(() => {
+    if (!lojaAtual) return;
     supabaseNavegador()
       .from('vw_operacoes')
       .select('*')
+      .or(`loja_origem_id.eq.${lojaAtual.id},loja_destino_id.eq.${lojaAtual.id}`)
       .order('criado_em', { ascending: false })
       .limit(10)
       .then(({ data }) => setUltimas((data ?? []) as OperacaoResumo[]));
-  }, [versao]);
+  }, [versao, lojaAtual]);
 
   const ativos = useMemo(() => produtos.filter((p) => p.ativo), [produtos]);
   const lojaIds = lojas.map((l) => l.id);
 
-  const resumo = lojas.map((l) => {
+  const ordenadas = [...lojas].sort((a, b) => (a.id === lojaAtual?.id ? -1 : b.id === lojaAtual?.id ? 1 : 0));
+  const resumo = ordenadas.map((l) => {
     let unidades = 0;
     let valor = 0;
     const baixos = [];
@@ -45,7 +48,7 @@ export default function Painel() {
 
   return (
     <div className="space-y-6">
-      <Titulo sub={`Olá, ${primeiroNome}! Este é o resumo do estoque agora.`}>Painel</Titulo>
+      <Titulo sub={`Olá, ${primeiroNome}! Você está trabalhando no estoque ${lojaAtual?.nome}.`}>Painel</Titulo>
 
       {/* Indicadores */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -70,20 +73,28 @@ export default function Painel() {
         </div>
       </div>
 
-      {/* Atalhos */}
+      {/* Atalhos (só o que o usuário pode fazer) */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Link href="/entrada" className="btn-principal h-14 text-base">
-          <PackagePlus className="h-5 w-5" /> Entrada
-        </Link>
-        <Link href="/transferencia" className="btn-azul h-14 text-base">
-          <ArrowLeftRight className="h-5 w-5" /> Transferir
-        </Link>
-        <Link href="/saida" className="btn-secundario h-14 text-base">
-          Saída
-        </Link>
-        <Link href="/inventario" className="btn-secundario h-14 text-base">
-          Inventário
-        </Link>
+        {pode('entrada') && (
+          <Link href="/entrada" className="btn-principal h-14 text-base">
+            <PackagePlus className="h-5 w-5" /> Entrada
+          </Link>
+        )}
+        {pode('transferir') && (
+          <Link href="/transferencia" className="btn-azul h-14 text-base">
+            <ArrowLeftRight className="h-5 w-5" /> Transferir
+          </Link>
+        )}
+        {pode('saida') && (
+          <Link href="/saida" className="btn-secundario h-14 text-base">
+            Saída
+          </Link>
+        )}
+        {pode('inventario') && (
+          <Link href="/inventario" className="btn-secundario h-14 text-base">
+            Inventário
+          </Link>
+        )}
       </div>
 
       {/* Alertas de estoque baixo */}
@@ -114,17 +125,23 @@ export default function Painel() {
                           <span className="text-suave"> / mín. {e.estoque_minimo}</span>
                         </span>
                       </div>
-                      {sug && origem ? (
+                      {sug && origem && origem.id === lojaAtual?.id && pode('transferir') ? (
+                        // a sobra está AQUI: dá para enviar daqui mesmo
                         <Link
-                          href={`/transferencia?origem=${origem.id}&destino=${r.loja.id}&produto=${p.id}&qtd=${sug.quantidade}`}
+                          href={`/transferencia?destino=${r.loja.id}&produto=${p.id}&qtd=${sug.quantidade}`}
                           className="mt-2 inline-flex items-center gap-2 rounded-lg bg-marinho px-3 py-1.5 text-xs font-semibold text-white hover:bg-azul"
                         >
                           <ArrowLeftRight className="h-3.5 w-3.5" />
-                          Sugestão: transferir {sug.quantidade} de {origem.nome}
+                          Enviar {sug.quantidade} daqui para {r.loja.nome}
                         </Link>
-                      ) : (
+                      ) : sug && origem ? (
+                        // a sobra está na outra loja: a transferência é feita no painel dela
+                        <div className="mt-2 text-xs text-sky-300">
+                          {origem.nome} tem sobra de {sug.quantidade}: a transferência é feita dentro do estoque {origem.nome}.
+                        </div>
+                      ) : r.loja.id !== lojaAtual?.id || !pode('entrada') ? null : (
                         <Link
-                          href={`/entrada?loja=${r.loja.id}&produto=${p.id}`}
+                          href={`/entrada?produto=${p.id}`}
                           className="mt-2 inline-flex items-center gap-1 text-xs text-dourado hover:underline"
                         >
                           Sem sobra na outra loja — registrar compra/entrada
@@ -149,7 +166,7 @@ export default function Painel() {
       {/* Últimas movimentações */}
       <div className="cartao p-0 sm:p-0">
         <div className="flex items-center justify-between border-b border-borda px-4 py-3">
-          <h2 className="font-titulo font-bold">Últimas movimentações</h2>
+          <h2 className="font-titulo font-bold">Últimas movimentações deste estoque</h2>
           <Link href="/movimentacoes" className="text-sm text-dourado hover:underline">
             Ver todas
           </Link>

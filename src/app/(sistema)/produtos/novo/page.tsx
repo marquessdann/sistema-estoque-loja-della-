@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { ProdutoForm } from '@/components/produto-form';
-import { Titulo } from '@/components/ui';
+import { SemPermissao, Titulo } from '@/components/ui';
 import { useDados } from '@/lib/dados';
 import type { Produto } from '@/lib/tipos';
 
 export default function NovoProduto() {
-  const { produtoPorId } = useDados();
+  const { produtoPorId, pode } = useDados();
   const [base, setBase] = useState<Produto | undefined>();
   const [pronto, setPronto] = useState(false);
 
@@ -18,6 +18,7 @@ export default function NovoProduto() {
     setPronto(true);
   }, [produtoPorId]);
 
+  if (!pode('produtos')) return <SemPermissao texto="Você não tem permissão para cadastrar produtos." />;
   if (!pronto) return null;
   return (
     <div className="mx-auto max-w-3xl">

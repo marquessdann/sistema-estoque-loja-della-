@@ -3,9 +3,8 @@
 import { ScanBarcode, Search } from 'lucide-react';
 import { useMemo, useRef, useState } from 'react';
 import { useDados } from '@/lib/dados';
-import { buscarProdutos, estoqueNaLoja, normalizar } from '@/lib/formato';
+import { buscarProdutos, normalizar } from '@/lib/formato';
 import type { Produto } from '@/lib/tipos';
-import { LojaTag } from './loja';
 
 // Campo de busca de produto por nome, SKU ou código de barras.
 // Com leitor de código de barras: bipou + Enter = produto adicionado.
@@ -20,7 +19,7 @@ export function ProdutoBusca({
   autoFocus?: boolean;
   incluirInativos?: boolean;
 }) {
-  const { produtos, lojas } = useDados();
+  const { produtos } = useDados();
   const [termo, setTermo] = useState('');
   const [aberto, setAberto] = useState(false);
   const [destaque, setDestaque] = useState(0);
@@ -94,16 +93,7 @@ export function ProdutoBusca({
                 <span className="font-medium">
                   {p.nome} {!p.ativo && <span className="text-xs text-rose-400">(inativo)</span>}
                 </span>
-                <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-suave">
-                  <span>SKU {p.sku}</span>
-                  {p.ean && <span>EAN {p.ean}</span>}
-                  {lojas.map((l) => (
-                    <span key={l.id} className="flex items-center gap-1">
-                      <LojaTag loja={l} tamanho="sm" />
-                      <b className="tabular text-white">{estoqueNaLoja(p, l.id).saldo}</b>
-                    </span>
-                  ))}
-                </span>
+                <span className="text-xs text-suave">SKU {p.sku}</span>
               </button>
             ))
           )}

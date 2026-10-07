@@ -131,6 +131,7 @@ export function Confirmar({
   textoConfirmar = 'Confirmar',
   perigo = false,
   ocupado = false,
+  bloquearConfirmar = false,
   aoConfirmar,
   aoCancelar,
 }: {
@@ -140,6 +141,8 @@ export function Confirmar({
   textoConfirmar?: string;
   perigo?: boolean;
   ocupado?: boolean;
+  /** deixa o botão de confirmar desligado (ex.: falta marcar "conferi") */
+  bloquearConfirmar?: boolean;
   aoConfirmar: () => void;
   aoCancelar: () => void;
 }) {
@@ -150,7 +153,7 @@ export function Confirmar({
         <button className="btn-secundario" onClick={aoCancelar} disabled={ocupado}>
           Voltar
         </button>
-        <button className={perigo ? 'btn-perigo' : 'btn-principal'} onClick={aoConfirmar} disabled={ocupado}>
+        <button className={perigo ? 'btn-perigo' : 'btn-principal'} onClick={aoConfirmar} disabled={ocupado || bloquearConfirmar}>
           {ocupado && <Loader2 className="h-4 w-4 animate-spin" />}
           {textoConfirmar}
         </button>
@@ -159,38 +162,67 @@ export function Confirmar({
   );
 }
 
-// Campo de quantidade inteira (aceita só números)
+// Campo de quantidade inteira com botões − e + (grandes, bons para o celular)
 export function CampoQuantidade({
   valor,
   aoMudar,
   max,
+  min = 0,
   className = '',
   autoFocus,
 }: {
   valor: number | '';
   aoMudar: (v: number | '') => void;
   max?: number;
+  min?: number;
   className?: string;
   autoFocus?: boolean;
 }) {
+  const passo = (d: number) => {
+    let n = (Number(valor) || 0) + d;
+    n = Math.max(min, n);
+    if (max !== undefined) n = Math.min(max, n);
+    aoMudar(n);
+  };
   return (
-    <input
-      type="number"
-      inputMode="numeric"
-      min={0}
-      max={max}
-      step={1}
-      autoFocus={autoFocus}
-      className={`campo tabular text-right ${className}`}
-      value={valor}
-      onFocus={(e) => e.target.select()}
-      onChange={(e) => {
-        const t = e.target.value;
-        if (t === '') return aoMudar('');
-        const n = Math.max(0, Math.floor(Number(t)));
-        aoMudar(Number.isFinite(n) ? n : '');
-      }}
-    />
+    <div
+      className={`flex h-11 items-stretch overflow-hidden rounded-lg border border-borda bg-painel2 transition focus-within:border-dourado focus-within:ring-2 focus-within:ring-dourado/30 ${className}`}
+    >
+      <button
+        type="button"
+        onClick={() => passo(-1)}
+        className="w-10 shrink-0 bg-white/5 font-titulo text-xl font-bold text-dourado transition hover:bg-dourado hover:text-preto active:scale-95"
+        aria-label="Diminuir"
+      >
+        −
+      </button>
+      <input
+        type="number"
+        inputMode="numeric"
+        min={min}
+        max={max}
+        step={1}
+        autoFocus={autoFocus}
+        aria-label="Quantidade"
+        className="w-full min-w-0 bg-transparent text-center font-titulo text-base font-bold tabular text-white outline-none"
+        value={valor}
+        onFocus={(e) => e.target.select()}
+        onChange={(e) => {
+          const t = e.target.value;
+          if (t === '') return aoMudar('');
+          const n = Math.max(0, Math.floor(Number(t)));
+          aoMudar(Number.isFinite(n) ? n : '');
+        }}
+      />
+      <button
+        type="button"
+        onClick={() => passo(1)}
+        className="w-10 shrink-0 bg-white/5 font-titulo text-xl font-bold text-dourado transition hover:bg-dourado hover:text-preto active:scale-95"
+        aria-label="Aumentar"
+      >
+        +
+      </button>
+    </div>
   );
 }
 
@@ -221,6 +253,18 @@ export function Expansivel({
         {extra}
       </div>
       {aberto && <div className="mt-4">{children}</div>}
+    </div>
+  );
+}
+
+// Bloqueia uma tela inteira quando o usuário não tem a permissão
+// (o banco de dados também bloqueia: isto é só para a tela ficar clara).
+export function SemPermissao({ texto = 'Você não tem permissão para acessar esta tela.' }: { texto?: string }) {
+  return (
+    <div className="mx-auto mt-10 max-w-md rounded-xl border border-borda bg-painel p-6 text-center">
+      <div className="mb-2 text-3xl">🔒</div>
+      <p className="font-semibold">{texto}</p>
+      <p className="mt-1 text-sm text-suave">Se precisar, peça ao administrador para liberar em Usuários.</p>
     </div>
   );
 }

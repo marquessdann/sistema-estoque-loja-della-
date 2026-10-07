@@ -1,68 +1,54 @@
 'use client';
 
-import { ArrowDown, ArrowLeftRight, ArrowRight, History } from 'lucide-react';
+import { ArrowLeftRight, ArrowRight, History } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { erroDoItem, ListaItens, type ItemLancamento } from '@/components/lista-itens';
 import { LojaTag, SeletorLoja } from '@/components/loja';
-import { anexarNaOperacao, errosDaNota, NotaFiscalCampos, prepararNota } from '@/components/nota-fiscal';
+import { anexarNaTransferencia, errosDaNota, NotaFiscalCampos, prepararNota } from '@/components/nota-fiscal';
 import { ProdutoBusca } from '@/components/produto-busca';
-import { Campo, Confirmar, Expansivel, Titulo } from '@/components/ui';
+import { Campo, Confirmar, Expansivel, SemPermissao, Titulo } from '@/components/ui';
 import { useDados } from '@/lib/dados';
 import { mensagemErro } from '@/lib/erros';
-import { corTexto, estoqueNaLoja, numero } from '@/lib/formato';
+import { corTexto, disponivelNaLoja, novaChave, numero } from '@/lib/formato';
 import { supabaseNavegador } from '@/lib/supabase/client';
 import { NOTA_VAZIA, type NotaForm, type Produto } from '@/lib/tipos';
 
 export default function Transferencia() {
-  const { lojas, produtos, produtoPorId, loja } = useDados();
-  const [origemId, setOrigemId] = useState<number | null>(null);
+  const { produtos, produtoPorId, loja, pode, lojaAtual, outrasLojas } = useDados();
+  const chave = useRef(novaChave());
+  const [ultima, setUltima] = useState<number | null>(null);
+  // a mercadoria SEMPRE sai do estoque em que a pessoa está
+  const origemId = lojaAtual?.id ?? null;
   const [destinoId, setDestinoId] = useState<number | null>(null);
   const [itens, setItens] = useState<ItemLancamento[]>([]);
   const [nota, setNota] = useState<NotaForm>(NOTA_VAZIA);
   const [anexo, setAnexo] = useState<File | null>(null);
   const [obs, setObs] = useState('');
   const [confirmar, setConfirmar] = useState(false);
+  const [conferiu, setConferiu] = useState(false);
   const [ocupado, setOcupado] = useState(false);
-  const [ultima, setUltima] = useState<number | null>(null);
   const inicializado = useRef(false);
 
-  // /transferencia?origem=1&destino=2&produto=5&qtd=3 (vem do Painel ou da tela do produto)
+  // destino padrão: a outra loja (com 2 lojas não há o que escolher)
   useEffect(() => {
-    if (inicializado.current || produtos.length === 0 || lojas.length === 0) return;
+    if (!destinoId || destinoId === origemId) setDestinoId(outrasLojas[0]?.id ?? null);
+  }, [outrasLojas, origemId, destinoId]);
+
+  // /transferencia?destino=2&produto=5&qtd=3 (vem do Painel ou da tela do produto)
+  useEffect(() => {
+    if (inicializado.current || produtos.length === 0) return;
     inicializado.current = true;
     const q = new URLSearchParams(window.location.search);
     const p = q.get('produto') ? produtoPorId(Number(q.get('produto'))) : undefined;
-    let origem = q.get('origem') ? Number(q.get('origem')) : null;
-    let destino = q.get('destino') ? Number(q.get('destino')) : null;
-    // sem origem informada: sugere a loja que tem mais saldo do produto
-    if (p && !origem && lojas.length === 2) {
-      const [a, b] = lojas;
-      origem = estoqueNaLoja(p, a.id).saldo >= estoqueNaLoja(p, b.id).saldo ? a.id : b.id;
-    }
-    if (origem && !destino && lojas.length === 2) destino = lojas.find((l) => l.id !== origem)!.id;
-    setOrigemId(origem);
-    setDestinoId(destino);
+    if (q.get('destino') && Number(q.get('destino')) !== origemId) setDestinoId(Number(q.get('destino')));
     if (p) setItens([{ produto_id: p.id, quantidade: q.get('qtd') ? Number(q.get('qtd')) : 1 }]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [produtos, lojas]);
+  }, [produtos]);
 
   const origem = loja(origemId);
   const destino = loja(destinoId);
-
-  function escolherOrigem(id: number) {
-    setOrigemId(id);
-    if (destinoId === id || (!destinoId && lojas.length === 2)) setDestinoId(lojas.find((l) => l.id !== id)?.id ?? null);
-  }
-  function escolherDestino(id: number) {
-    setDestinoId(id);
-    if (origemId === id || (!origemId && lojas.length === 2)) setOrigemId(lojas.find((l) => l.id !== id)?.id ?? null);
-  }
-  function inverter() {
-    setOrigemId(destinoId);
-    setDestinoId(origemId);
-  }
 
   function adicionar(p: Produto) {
     setItens((atual) =>
@@ -74,7 +60,7 @@ export default function Transferencia() {
 
   const saldoOrigem = (id: number) => {
     const p = produtoPorId(id);
-    return p && origemId ? estoqueNaLoja(p, origemId).saldo : 0;
+    return p && origemId ? disponivelNaLoja(p, origemId) : 0;
   };
 
   const problemas: string[] = [];
@@ -82,22 +68,26 @@ export default function Transferencia() {
   if (origemId && origemId === destinoId) problemas.push('Origem e destino precisam ser lojas diferentes.');
   if (itens.length === 0) problemas.push('Adicione pelo menos um produto.');
   if (origemId && itens.some((i) => erroDoItem(i, saldoOrigem(i.produto_id))))
-    problemas.push('Há quantidades vazias ou maiores que o saldo da loja de origem.');
+    problemas.push('Há quantidades vazias ou maiores que o estoque disponível na loja de origem.');
   if (Object.keys(errosDaNota(nota)).length) problemas.push('Corrija os dados da nota fiscal.');
 
   async function gravar() {
     setOcupado(true);
     try {
       const { data, error } = await supabaseNavegador().rpc('registrar_transferencia', {
-        p_origem_id: origemId,
-        p_destino_id: destinoId,
-        p_itens: itens.map((i) => ({ produto_id: i.produto_id, quantidade: Number(i.quantidade) })),
-        p_nota: prepararNota(nota),
-        p_observacao: obs,
+        p: {
+          origem_id: origemId,
+          destino_id: destinoId,
+          itens: itens.map((i) => ({ produto_id: i.produto_id, quantidade: Number(i.quantidade) })),
+          nota: prepararNota(nota),
+          observacao: obs,
+          chave: chave.current,
+        },
       });
       if (error) throw error;
-      await anexarNaOperacao(Number(data), anexo);
-      toast.success(`Transferência nº ${data} concluída!`);
+      chave.current = novaChave();
+      await anexarNaTransferencia(Number(data), anexo);
+      toast.success(`Transferência nº ${data} concluída: estoque atualizado nas duas lojas.`);
       setUltima(Number(data));
       setItens([]);
       setNota(NOTA_VAZIA);
@@ -110,6 +100,8 @@ export default function Transferencia() {
       setOcupado(false);
     }
   }
+
+  if (!pode('transferir')) return <SemPermissao texto="Você não tem permissão para fazer transferências." />;
 
   return (
     <div className="space-y-4">
@@ -127,7 +119,7 @@ export default function Transferencia() {
         </div>
       )}
       <Titulo
-        sub="Leve produtos de uma loja para a outra. Sai de uma e entra na outra ao mesmo tempo."
+        sub="Leve produtos de uma loja para a outra. Sai de uma e entra na outra na mesma hora."
         acoes={
           <Link href="/transferencias" className="btn-secundario">
             <History className="h-4 w-4" /> Histórico
@@ -137,23 +129,32 @@ export default function Transferencia() {
         Transferir entre lojas
       </Titulo>
 
+
       {ultima && (
         <div className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-3 text-sm">
           ✓ Transferência nº {ultima} concluída.{' '}
-          <Link href={`/transferencias?op=${ultima}`} className="text-dourado underline">
+          <Link href={`/transferencias/${ultima}`} className="text-dourado underline">
             Ver detalhes
           </Link>
         </div>
       )}
 
       <div className="cartao space-y-3">
-        <SeletorLoja lojas={lojas} valor={origemId} aoMudar={escolherOrigem} rotulo="DE (sai da loja):" />
-        <div className="flex justify-center">
-          <button type="button" onClick={inverter} className="btn-secundario rounded-full" title="Inverter origem e destino">
-            <ArrowDown className="h-4 w-4" /> <ArrowLeftRight className="h-4 w-4" /> Inverter
-          </button>
+        <div>
+          <span className="rotulo">SAI DE (o estoque em que você está):</span>
+          <LojaTag loja={origem} tamanho="lg" />
         </div>
-        <SeletorLoja lojas={lojas} valor={destinoId} aoMudar={escolherDestino} rotulo="PARA (entra na loja):" />
+        {outrasLojas.length > 1 ? (
+          <SeletorLoja lojas={outrasLojas} valor={destinoId} aoMudar={setDestinoId} rotulo="ENTRA EM (loja de destino):" />
+        ) : (
+          <div>
+            <span className="rotulo">ENTRA EM (loja de destino):</span>
+            <LojaTag loja={destino} tamanho="lg" />
+          </div>
+        )}
+        <p className="text-xs text-suave">
+          Para mover mercadoria no sentido contrário, entre no outro estoque (botão &quot;Trocar de estoque&quot; no topo).
+        </p>
       </div>
 
       <div className="cartao space-y-3">
@@ -184,15 +185,23 @@ export default function Transferencia() {
         </ul>
       )}
 
-      <button className="btn-principal h-14 w-full text-base" disabled={problemas.length > 0} onClick={() => setConfirmar(true)}>
-        <ArrowLeftRight className="h-5 w-5" /> Transferir
+      <button
+        className="btn-principal h-14 w-full text-base"
+        disabled={problemas.length > 0}
+        onClick={() => {
+          setConferiu(false);
+          setConfirmar(true);
+        }}
+      >
+        <ArrowLeftRight className="h-5 w-5" /> Transferir para {destino?.nome}
       </button>
 
       <Confirmar
         aberto={confirmar}
-        titulo="Confirmar transferência?"
-        textoConfirmar="Sim, transferir"
+        titulo={`Mover mercadoria para ${destino?.nome ?? ''}?`}
+        textoConfirmar="Sim, mover agora"
         ocupado={ocupado}
+        bloquearConfirmar={!conferiu}
         aoCancelar={() => setConfirmar(false)}
         aoConfirmar={gravar}
       >
@@ -201,8 +210,10 @@ export default function Transferencia() {
           <ArrowRight className="h-5 w-5 text-dourado" />
           <LojaTag loja={destino} tamanho="lg" />
         </div>
-        <p>
-          <b>{itens.length}</b> produto(s), <b>{numero(itens.reduce((s, i) => s + (Number(i.quantidade) || 0), 0))}</b> unidade(s).
+        <p className="text-base">
+          Você tem certeza que deseja mover{' '}
+          <b>{numero(itens.reduce((s, i) => s + (Number(i.quantidade) || 0), 0))} unidade(s)</b> de <b>{origem?.nome}</b> para{' '}
+          <b>{destino?.nome}</b>?
         </p>
         <ul className="max-h-48 overflow-y-auto rounded-lg bg-painel2 p-2 text-xs">
           {itens.map((i) => (
@@ -212,6 +223,12 @@ export default function Transferencia() {
             </li>
           ))}
         </ul>
+        <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-dourado/50 bg-dourado/10 p-3">
+          <input type="checkbox" className="mt-0.5 h-5 w-5 shrink-0 accent-dourado" checked={conferiu} onChange={(e) => setConferiu(e.target.checked)} />
+          <span>
+            Conferi: a mercadoria vai <b>sair de {origem?.nome}</b> e <b>entrar em {destino?.nome}</b>.
+          </span>
+        </label>
       </Confirmar>
     </div>
   );

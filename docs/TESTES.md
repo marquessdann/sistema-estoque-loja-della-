@@ -69,6 +69,23 @@ Faça estes testes depois de publicar (de preferência com os **dados de exemplo
 - [ ] **GitHub > Actions > Backup diário do banco > Run workflow** termina com ✅ e gera o arquivo em Artifacts.
 - [ ] Mudar a cor de uma loja em **Configurações**: as etiquetas mudam em todas as telas.
 
+## Estoque com senha, transferência e log
+- [ ] 🤖 Depois do login aparece "Em qual estoque você vai trabalhar?". Senha errada é recusada; `Galaxys2!` entra.
+- [ ] 🤖 A faixa colorida no topo mostra o estoque atual; "Trocar de estoque" pede a senha do outro.
+- [ ] 🤖 Entrada, saída e inventário acontecem no estoque atual (não há escolha de loja na tela).
+- [ ] 🤖 Transferir: a origem é sempre o estoque atual; o botão "Sim, mover agora" só libera depois de marcar "Conferi".
+- [ ] 🤖 No FULL, o histórico mostra só movimentações do FULL.
+- [ ] 🤖 Estorno de transferência só aparece no estoque de destino.
+- [ ] 🤖 Log de atividades (ADM) mostra quem fez cada coisa e filtra por usuário; o operador não vê o menu nem acessa pelo endereço.
+- [ ] 🤖 Admin troca a senha de um estoque em Configurações: a antiga deixa de funcionar.
+- [ ] 🤖 Operador não vê Usuários/Configurações/Log e, digitando o endereço, recebe a tela 🔒.
+- [ ] 🤖 Admin desliga "Registrar entradas" do operador: o menu some e a tela fica bloqueada.
+
+## Testes automáticos (para técnicos)
+- `testes/banco.sql`: 99 testes das regras do banco (rode num banco de TESTE; tudo é desfeito no fim).
+- `testes/api_permissoes.sh`: 42 tentativas de burlar a API como operador (devem ser todas bloqueadas).
+- Detalhes e resultados: [`docs/AUDITORIA.md`](AUDITORIA.md).
+
 ## Teste de "atomicidade" (avançado, opcional)
 No Supabase, **SQL Editor**, rode:
 ```sql

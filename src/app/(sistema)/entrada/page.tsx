@@ -5,20 +5,23 @@ import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { erroDoItem, ListaItens, type ItemLancamento } from '@/components/lista-itens';
-import { FaixaLoja, LojaTag, SeletorLoja } from '@/components/loja';
+import { LojaTag } from '@/components/loja';
 import { anexarNaOperacao, errosDaNota, NotaFiscalCampos, prepararNota } from '@/components/nota-fiscal';
 import { ProdutoBusca } from '@/components/produto-busca';
-import { Campo, Confirmar, Expansivel, Titulo } from '@/components/ui';
+import { Campo, Confirmar, Expansivel, SemPermissao, Titulo } from '@/components/ui';
 import { useDados } from '@/lib/dados';
 import { mensagemErro } from '@/lib/erros';
-import { lerNumero, moeda, MOTIVOS_ENTRADA, numero } from '@/lib/formato';
+import { hojeISO, lerNumero, moeda, MOTIVOS_ENTRADA, novaChave, numero } from '@/lib/formato';
 import { lerXmlNFe, type ItemNFe } from '@/lib/nfe';
 import { supabaseNavegador } from '@/lib/supabase/client';
 import { NOTA_VAZIA, type NotaForm, type Produto } from '@/lib/tipos';
 
 export default function Entrada() {
-  const { lojas, produtos, produtoPorId, loja, recarregar } = useDados();
-  const [lojaId, setLojaId] = useState<number | null>(null);
+  const { lojaAtual, produtos, produtoPorId, loja, recarregar, pode } = useDados();
+  const [dataRef, setDataRef] = useState(hojeISO());
+  const chave = useRef(novaChave()); // evita lançar 2x se clicar duas vezes
+  // sempre o estoque em que a pessoa entrou
+  const lojaId = lojaAtual?.id ?? null;
   const [motivo, setMotivo] = useState('compra');
   const [itens, setItens] = useState<ItemLancamento[]>([]);
   const [nota, setNota] = useState<NotaForm>(NOTA_VAZIA);
@@ -36,7 +39,6 @@ export default function Entrada() {
     if (inicializado.current || produtos.length === 0) return;
     inicializado.current = true;
     const q = new URLSearchParams(window.location.search);
-    if (q.get('loja')) setLojaId(Number(q.get('loja')));
     const p = q.get('produto') ? produtoPorId(Number(q.get('produto'))) : undefined;
     if (p) adicionar(p);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -127,6 +129,8 @@ export default function Entrada() {
   if (itens.some((i) => erroDoItem(i, null))) problemas.push('Informe a quantidade de todos os produtos.');
   if (Object.keys(errosNota).length) problemas.push('Corrija os dados da nota fiscal.');
   if (pendentes.length) problemas.push('Há itens da nota ainda não vinculados a produtos.');
+  if (motivo === 'outro' && !obs.trim()) problemas.push('Para o motivo "Outro", descreva na observação.');
+  if (!dataRef || dataRef > hojeISO()) problemas.push('Informe uma data válida (não pode ser no futuro).');
 
   const totalItens = itens.reduce((s, i) => s + (Number(i.quantidade) || 0) * (Number(i.custo) || 0), 0);
   const valorNota = lerNumero(nota.valor_total);
@@ -136,18 +140,23 @@ export default function Entrada() {
     try {
       const notaPronta = prepararNota(nota);
       const { data, error } = await supabaseNavegador().rpc('registrar_entrada', {
-        p_loja_id: lojaId,
-        p_itens: itens.map((i) => ({
-          produto_id: i.produto_id,
-          quantidade: Number(i.quantidade),
-          custo_unitario: i.custo === '' || i.custo === undefined ? null : Number(i.custo),
-        })),
-        p_motivo: motivo,
-        p_nota: notaPronta,
-        p_observacao: obs,
-        p_origem: veioDoXml ? 'xml' : 'manual',
+        p: {
+          loja_id: lojaId,
+          itens: itens.map((i) => ({
+            produto_id: i.produto_id,
+            quantidade: Number(i.quantidade),
+            custo_unitario: i.custo === '' || i.custo === undefined ? null : Number(i.custo),
+          })),
+          motivo,
+          nota: notaPronta,
+          observacao: obs,
+          origem: veioDoXml ? 'xml' : 'manual',
+          data: dataRef,
+          chave: chave.current,
+        },
       });
       if (error) throw error;
+      chave.current = novaChave();
       await anexarNaOperacao(Number(data), anexo);
       toast.success(`Entrada nº ${data} registrada com sucesso!`);
       setUltima(Number(data));
@@ -165,9 +174,10 @@ export default function Entrada() {
     }
   }
 
+  if (!pode('entrada')) return <SemPermissao texto="Você não tem permissão para registrar entradas." />;
+
   return (
     <div className="space-y-4">
-      <FaixaLoja loja={lojaEscolhida} texto="Entrada em" />
       <Titulo sub="Mercadoria chegando: compra com nota fiscal, devolução de cliente, bonificação...">Entrada de mercadoria</Titulo>
 
       {ultima && (
@@ -180,16 +190,20 @@ export default function Entrada() {
       )}
 
       <div className="cartao space-y-4">
-        <SeletorLoja lojas={lojas} valor={lojaId} aoMudar={setLojaId} rotulo="Em qual loja a mercadoria está entrando?" />
-        <Campo rotulo="Motivo">
-          <select className="campo" value={motivo} onChange={(e) => setMotivo(e.target.value)}>
-            {MOTIVOS_ENTRADA.map((m) => (
-              <option key={m.valor} value={m.valor}>
-                {m.rotulo}
-              </option>
-            ))}
-          </select>
-        </Campo>
+        <div className="grid gap-3 sm:grid-cols-[1fr_200px]">
+          <Campo rotulo="Motivo">
+            <select className="campo" value={motivo} onChange={(e) => setMotivo(e.target.value)}>
+              {MOTIVOS_ENTRADA.map((m) => (
+                <option key={m.valor} value={m.valor}>
+                  {m.rotulo}
+                </option>
+              ))}
+            </select>
+          </Campo>
+          <Campo rotulo="Data da entrada" dica="Quando a mercadoria chegou">
+            <input type="date" className="campo" value={dataRef} max={hojeISO()} onChange={(e) => setDataRef(e.target.value)} />
+          </Campo>
+        </div>
       </div>
 
       <Expansivel
@@ -227,7 +241,7 @@ export default function Entrada() {
             Para cada item, vincule a um produto já cadastrado (o código do fornecedor pode ser diferente do seu) ou cadastre como produto novo.
           </p>
           {pendentes.map((item, i) => (
-            <ItemPendente key={i} item={item} aoCadastrar={async () => void (await cadastrarPendente(item))} aoVincular={(p) => vincularPendente(item, p)} />
+            <ItemPendente key={i} item={item} podeCadastrar={pode('produtos')} aoCadastrar={async () => void (await cadastrarPendente(item))} aoVincular={(p) => vincularPendente(item, p)} />
           ))}
         </div>
       )}
@@ -249,7 +263,7 @@ export default function Entrada() {
       </div>
 
       <div className="cartao">
-        <Campo rotulo="Observação (opcional)">
+        <Campo rotulo={motivo === 'outro' ? 'Observação (obrigatória para "Outro")' : 'Observação (opcional)'}>
           <input className="campo" value={obs} onChange={(e) => setObs(e.target.value)} />
         </Campo>
       </div>
@@ -279,7 +293,7 @@ export default function Entrada() {
         </p>
         <p>
           <b>{itens.length}</b> produto(s), <b>{numero(itens.reduce((s, i) => s + (Number(i.quantidade) || 0), 0))}</b> unidade(s),
-          total {moeda(totalItens)}.
+          total {moeda(totalItens)}. Data: {dataRef.split('-').reverse().join('/')}.
         </p>
         {nota.numero ? <p>Nota fiscal nº {nota.numero}{anexo && ' (com anexo)'}.</p> : <p className="text-suave">Sem nota fiscal.</p>}
         <ul className="max-h-48 overflow-y-auto rounded-lg bg-painel2 p-2 text-xs">
@@ -298,10 +312,12 @@ export default function Entrada() {
 
 function ItemPendente({
   item,
+  podeCadastrar,
   aoCadastrar,
   aoVincular,
 }: {
   item: ItemNFe;
+  podeCadastrar: boolean;
   aoCadastrar: () => Promise<void>;
   aoVincular: (p: Produto) => void;
 }) {
@@ -324,7 +340,8 @@ function ItemPendente({
           </button>
           <button
             className="btn-secundario min-h-0 py-1.5 text-xs"
-            disabled={ocupado}
+            disabled={ocupado || !podeCadastrar}
+            title={podeCadastrar ? undefined : 'Sem permissão para cadastrar produtos: peça ao administrador ou vincule a um existente'}
             onClick={async () => {
               setOcupado(true);
               await aoCadastrar();

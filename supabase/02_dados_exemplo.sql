@@ -49,7 +49,8 @@ begin
     on conflict (sku) do nothing;
 
     update public.produto_loja pl set estoque_minimo = case pl.loja_id when v_estoque then v_p.min_e else v_p.min_f end
-     where pl.produto_id = (select id from public.produtos where sku = v_p.sku);
+     where pl.produto_id = (select id from public.produtos where sku = v_p.sku)
+       and pl.loja_id in (v_estoque, v_full);
 
     perform public.fn_movimentar(v_op, (select id from public.produtos where sku = v_p.sku), v_estoque, v_p.saldo_e, v_p.custo);
     perform public.fn_movimentar(v_op, (select id from public.produtos where sku = v_p.sku), v_full,    v_p.saldo_f, v_p.custo);

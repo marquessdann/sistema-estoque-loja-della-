@@ -96,6 +96,7 @@ export default function Notas() {
 }
 
 function DetalheNota({ nota, aoFechar, aoAlterar }: { nota: NotaFiscal | null; aoFechar: () => void; aoAlterar: () => void }) {
+  const { pode } = useDados();
   const [ops, setOps] = useState<OperacaoResumo[]>([]);
   const [opAberta, setOpAberta] = useState<number | null>(null);
   const [anexo, setAnexo] = useState<{ path: string; nome: string } | null>(null);
@@ -151,6 +152,7 @@ function DetalheNota({ nota, aoFechar, aoAlterar }: { nota: NotaFiscal | null; a
                 <Paperclip className="h-4 w-4" /> Abrir {anexo.nome}
               </button>
             )}
+            {pode('entrada') && (
             <label className={`btn-secundario cursor-pointer ${enviando ? 'opacity-50' : ''}`}>
               <Upload className="h-4 w-4" /> {anexo ? 'Trocar anexo' : 'Anexar PDF/XML'}
               <input
@@ -165,6 +167,7 @@ function DetalheNota({ nota, aoFechar, aoAlterar }: { nota: NotaFiscal | null; a
                 }}
               />
             </label>
+            )}
           </div>
 
           <div>

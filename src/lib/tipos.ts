@@ -1,6 +1,19 @@
 // Tipos de dados usados nas telas (espelham as tabelas do banco).
 
 export type Perfil = 'admin' | 'operador';
+
+// Permissões que o administrador pode dar (ou tirar) de cada operador
+export type Permissao =
+  | 'produtos'
+  | 'entrada'
+  | 'saida'
+  | 'transferir'
+  | 'inventario'
+  | 'estornar'
+  | 'relatorios'
+  | 'historico';
+
+export type StatusTransferencia = 'concluida' | 'estornada';
 export type TipoOperacao = 'entrada' | 'saida' | 'ajuste' | 'transferencia' | 'estorno';
 
 export interface Loja {
@@ -19,6 +32,15 @@ export interface Usuario {
   perfil: Perfil;
   ativo: boolean;
   criado_em: string;
+  perm_produtos: boolean;
+  perm_entrada: boolean;
+  perm_saida: boolean;
+  perm_transferir: boolean;
+  perm_inventario: boolean;
+  perm_estornar: boolean;
+  perm_relatorios: boolean;
+  perm_historico: boolean;
+  loja_atual: number | null; // estoque em que a pessoa está trabalhando agora
 }
 
 export interface Estoque {
@@ -59,6 +81,8 @@ export interface Fornecedor extends Cadastro {
 export interface OperacaoResumo {
   id: number;
   criado_em: string;
+  data_referencia: string;
+  transferencia_id: number | null;
   tipo: TipoOperacao;
   motivo: string | null;
   observacao: string | null;
@@ -84,6 +108,11 @@ export interface OperacaoResumo {
 export interface MovimentacaoLinha {
   id: number;
   criado_em: string;
+  data_referencia: string;
+  transferencia_id: number | null;
+  saldo_antes: number;
+  origem_nome: string | null;
+  destino_nome: string | null;
   operacao_id: number;
   tipo: TipoOperacao;
   motivo: string | null;
@@ -153,3 +182,45 @@ export const NOTA_VAZIA: NotaForm = {
   cfop: '',
   natureza_operacao: '',
 };
+
+export interface Transferencia {
+  id: number;
+  status: StatusTransferencia;
+  loja_origem_id: number;
+  loja_destino_id: number;
+  origem_nome: string;
+  origem_cor: string;
+  destino_nome: string;
+  destino_cor: string;
+  observacao: string | null;
+  nota_fiscal_id: number | null;
+  nf_numero: string | null;
+  usuario_id: string | null;
+  usuario_nome: string;
+  criado_em: string;
+  estornado_por_nome: string | null;
+  estornado_em: string | null;
+  motivo_estorno: string | null;
+  qtd_produtos: number;
+  total_unidades: number;
+}
+
+export interface TransferenciaItem {
+  transferencia_id: number;
+  produto_id: number;
+  produto_nome: string;
+  sku: string;
+  unidade: string;
+  quantidade: number;
+}
+
+export interface RegistroLog {
+  quando: string;
+  usuario_id: string | null;
+  usuario_nome: string;
+  perfil: string | null;
+  acao: string;
+  detalhe: string;
+  origem: 'operacao' | 'auditoria';
+  referencia: string;
+}

@@ -5,19 +5,22 @@ import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { erroDoItem, ListaItens, type ItemLancamento } from '@/components/lista-itens';
-import { FaixaLoja, LojaTag, SeletorLoja } from '@/components/loja';
+import { LojaTag } from '@/components/loja';
 import { anexarNaOperacao, errosDaNota, NotaFiscalCampos, prepararNota } from '@/components/nota-fiscal';
 import { ProdutoBusca } from '@/components/produto-busca';
-import { Campo, Confirmar, Expansivel, Titulo } from '@/components/ui';
+import { Campo, Confirmar, Expansivel, SemPermissao, Titulo } from '@/components/ui';
 import { useDados } from '@/lib/dados';
 import { mensagemErro } from '@/lib/erros';
-import { estoqueNaLoja, MOTIVOS_SAIDA, numero, rotuloMotivo } from '@/lib/formato';
+import { disponivelNaLoja, hojeISO, MOTIVOS_SAIDA, novaChave, numero, rotuloMotivo } from '@/lib/formato';
 import { supabaseNavegador } from '@/lib/supabase/client';
 import { NOTA_VAZIA, type NotaForm, type Produto } from '@/lib/tipos';
 
 export default function Saida() {
-  const { lojas, produtos, produtoPorId, loja } = useDados();
-  const [lojaId, setLojaId] = useState<number | null>(null);
+  const { lojaAtual, produtos, produtoPorId, loja, pode } = useDados();
+  const [dataRef, setDataRef] = useState(hojeISO());
+  const chave = useRef(novaChave());
+  // sempre o estoque em que a pessoa entrou
+  const lojaId = lojaAtual?.id ?? null;
   const [motivo, setMotivo] = useState('venda');
   const [itens, setItens] = useState<ItemLancamento[]>([]);
   const [nota, setNota] = useState<NotaForm>(NOTA_VAZIA);
@@ -32,7 +35,6 @@ export default function Saida() {
     if (inicializado.current || produtos.length === 0) return;
     inicializado.current = true;
     const q = new URLSearchParams(window.location.search);
-    if (q.get('loja')) setLojaId(Number(q.get('loja')));
     const p = q.get('produto') ? produtoPorId(Number(q.get('produto'))) : undefined;
     if (p) adicionar(p);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -50,27 +52,34 @@ export default function Saida() {
 
   const saldo = (id: number) => {
     const p = produtoPorId(id);
-    return p && lojaId ? estoqueNaLoja(p, lojaId).saldo : 0;
+    return p && lojaId ? disponivelNaLoja(p, lojaId) : 0;
   };
 
   const problemas: string[] = [];
   if (!lojaId) problemas.push('Escolha de qual loja a mercadoria está saindo.');
   if (itens.length === 0) problemas.push('Adicione pelo menos um produto.');
   if (lojaId && itens.some((i) => erroDoItem(i, saldo(i.produto_id))))
-    problemas.push('Há quantidades vazias ou maiores que o saldo disponível.');
+    problemas.push('Há quantidades vazias ou maiores que o estoque disponível.');
+  if (motivo === 'outro' && !obs.trim()) problemas.push('Para o motivo "Outro", descreva na observação.');
+  if (!dataRef || dataRef > hojeISO()) problemas.push('Informe uma data válida (não pode ser no futuro).');
   if (Object.keys(errosDaNota(nota)).length) problemas.push('Corrija os dados da nota fiscal.');
 
   async function gravar() {
     setOcupado(true);
     try {
       const { data, error } = await supabaseNavegador().rpc('registrar_saida', {
-        p_loja_id: lojaId,
-        p_itens: itens.map((i) => ({ produto_id: i.produto_id, quantidade: Number(i.quantidade) })),
-        p_motivo: motivo,
-        p_nota: prepararNota(nota),
-        p_observacao: obs,
+        p: {
+          loja_id: lojaId,
+          itens: itens.map((i) => ({ produto_id: i.produto_id, quantidade: Number(i.quantidade) })),
+          motivo,
+          nota: prepararNota(nota),
+          observacao: obs,
+          data: dataRef,
+          chave: chave.current,
+        },
       });
       if (error) throw error;
+      chave.current = novaChave();
       await anexarNaOperacao(Number(data), anexo);
       toast.success(`Saída nº ${data} registrada!`);
       setUltima(Number(data));
@@ -86,9 +95,10 @@ export default function Saida() {
     }
   }
 
+  if (!pode('saida')) return <SemPermissao texto="Você não tem permissão para registrar saídas." />;
+
   return (
     <div className="space-y-4">
-      <FaixaLoja loja={lojaEscolhida} texto="Saída de" />
       <Titulo sub="Mercadoria saindo: venda, perda, avaria ou uso interno.">Saída de mercadoria</Titulo>
 
       {ultima && (
@@ -101,16 +111,20 @@ export default function Saida() {
       )}
 
       <div className="cartao space-y-4">
-        <SeletorLoja lojas={lojas} valor={lojaId} aoMudar={setLojaId} rotulo="De qual loja a mercadoria está saindo?" />
-        <Campo rotulo="Motivo" obrigatorio>
-          <select className="campo" value={motivo} onChange={(e) => setMotivo(e.target.value)}>
-            {MOTIVOS_SAIDA.map((m) => (
-              <option key={m.valor} value={m.valor}>
-                {m.rotulo}
-              </option>
-            ))}
-          </select>
-        </Campo>
+        <div className="grid gap-3 sm:grid-cols-[1fr_200px]">
+          <Campo rotulo="Motivo" obrigatorio>
+            <select className="campo" value={motivo} onChange={(e) => setMotivo(e.target.value)}>
+              {MOTIVOS_SAIDA.map((m) => (
+                <option key={m.valor} value={m.valor}>
+                  {m.rotulo}
+                </option>
+              ))}
+            </select>
+          </Campo>
+          <Campo rotulo="Data da saída">
+            <input type="date" className="campo" value={dataRef} max={hojeISO()} onChange={(e) => setDataRef(e.target.value)} />
+          </Campo>
+        </div>
       </div>
 
       <div className="cartao space-y-3">
@@ -128,7 +142,7 @@ export default function Saida() {
       </Expansivel>
 
       <div className="cartao">
-        <Campo rotulo="Observação (opcional)">
+        <Campo rotulo={motivo === 'outro' ? 'Observação (obrigatória para "Outro")' : 'Observação (opcional)'}>
           <input className="campo" value={obs} onChange={(e) => setObs(e.target.value)} placeholder="Ex.: pedido nº, nome do cliente..." />
         </Campo>
       </div>

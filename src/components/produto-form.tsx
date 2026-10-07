@@ -6,15 +6,15 @@ import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { urlFoto, useDados } from '@/lib/dados';
 import { mensagemErro } from '@/lib/erros';
-import { estoqueNaLoja, lerNumero, UNIDADES } from '@/lib/formato';
+import { eanValido, estoqueNaLoja, lerNumero, normalizar, UNIDADES } from '@/lib/formato';
 import { supabaseNavegador } from '@/lib/supabase/client';
 import type { Produto } from '@/lib/tipos';
 import { LojaTag } from './loja';
 import { Campo } from './ui';
 
 // Formulário único de cadastro/edição de produto.
-export function ProdutoForm({ produto, base }: { produto?: Produto; base?: Produto }) {
-  const { lojas, categorias, marcas, categoriaNome, marcaNome, recarregar } = useDados();
+export function ProdutoForm({ produto, base, somenteLeitura = false }: { produto?: Produto; base?: Produto; somenteLeitura?: boolean }) {
+  const { lojas, categorias, marcas, categoriaNome, marcaNome, recarregar, produtos } = useDados();
   const router = useRouter();
   const origem = produto ?? base; // "base" = produto sendo duplicado
 
@@ -41,12 +41,24 @@ export function ProdutoForm({ produto, base }: { produto?: Produto; base?: Produ
   const previa = urlLocal ?? urlFoto(fotoPath);
   const erroNome = tentou && !nome.trim() ? 'Informe o nome do produto' : null;
   const erroCusto = custo.trim() && lerNumero(custo) === null ? 'Valor inválido' : null;
-  const erroVenda = venda.trim() && lerNumero(venda) === null ? 'Valor inválido' : null;
+  const erroVenda = venda.trim() && (lerNumero(venda) === null || (lerNumero(venda) ?? 0) < 0) ? 'Valor inválido' : null;
+  const eanLimpo = ean.replace(/\s/g, '');
+  const erroEan = eanLimpo && !eanValido(eanLimpo) ? 'Código inválido: só números, e confira o último dígito' : null;
+  const erroSku = sku.trim() && !/^[A-Za-z0-9][A-Za-z0-9._/-]{0,39}$/.test(sku.trim()) ? 'Use só letras, números, ponto, hífen ou barra' : null;
+  const erroMinimo = Object.values(minimos).some((v) => v !== '' && (Number(v) < 0 || !Number.isInteger(Number(v))))
+    ? 'O mínimo deve ser um número inteiro (zero ou mais)'
+    : null;
+  // aviso (não bloqueia): já existe produto com nome igual?
+  const nomeParecido = nome.trim()
+    ? produtos.find((x) => x.id !== produto?.id && normalizar(x.nome) === normalizar(nome))
+    : undefined;
+  const vendaAbaixoCusto = (lerNumero(venda) ?? 0) > 0 && (lerNumero(venda) ?? 0) < (lerNumero(custo) ?? 0);
 
   async function salvar(e: React.FormEvent) {
     e.preventDefault();
     setTentou(true);
-    if (!nome.trim() || erroCusto || erroVenda) return toast.error('Confira os campos destacados.');
+    if (somenteLeitura) return;
+    if (!nome.trim() || erroCusto || erroVenda || erroEan || erroSku || erroMinimo) return toast.error('Confira os campos destacados.');
     setOcupado(true);
     try {
       const sb = supabaseNavegador();
@@ -88,15 +100,27 @@ export function ProdutoForm({ produto, base }: { produto?: Produto; base?: Produ
 
   return (
     <form onSubmit={salvar} className="cartao space-y-5">
+      {somenteLeitura && (
+        <p className="rounded-lg bg-white/5 p-3 text-sm text-suave">
+          🔒 Somente consulta: você não tem permissão para editar produtos.
+        </p>
+      )}
+      <fieldset disabled={somenteLeitura} className="space-y-5">
       <div className="grid gap-4 sm:grid-cols-[1fr_160px]">
         <div className="grid grid-cols-2 gap-3">
-          <Campo rotulo="Nome do produto" obrigatorio erro={erroNome} className="col-span-2">
+          <Campo
+            rotulo="Nome do produto"
+            obrigatorio
+            erro={erroNome}
+            dica={nomeParecido ? <span className="text-orange-300">Atenção: já existe um produto com este nome (SKU {nomeParecido.sku}).</span> : undefined}
+            className="col-span-2"
+          >
             <input className="campo" value={nome} onChange={(e) => setNome(e.target.value)} autoFocus={!produto} placeholder="Ex.: Pinça Ponta Fina Edel Solingen" />
           </Campo>
-          <Campo rotulo="SKU (código interno)" dica={produto ? undefined : 'Deixe vazio para gerar automático'}>
+          <Campo rotulo="SKU (código interno)" erro={erroSku} dica={produto ? undefined : 'Deixe vazio para gerar automático'}>
             <input className="campo uppercase" value={sku} onChange={(e) => setSku(e.target.value)} placeholder="Automático" />
           </Campo>
-          <Campo rotulo="Código de barras (EAN)">
+          <Campo rotulo="Código de barras (EAN)" erro={erroEan}>
             <input className="campo tabular" inputMode="numeric" value={ean} onChange={(e) => setEan(e.target.value)} placeholder="Bipe ou digite" />
           </Campo>
           <Campo rotulo="Categoria" dica="Escolha ou digite uma nova">
@@ -167,7 +191,12 @@ export function ProdutoForm({ produto, base }: { produto?: Produto; base?: Produ
         <Campo rotulo="Preço de custo (R$)" erro={erroCusto}>
           <input className="campo tabular" inputMode="decimal" value={custo} onChange={(e) => setCusto(e.target.value)} placeholder="0,00" />
         </Campo>
-        <Campo rotulo="Preço de venda (R$)" erro={erroVenda} className="col-span-2 sm:col-span-1">
+        <Campo
+          rotulo="Preço de venda (R$)"
+          erro={erroVenda}
+          dica={vendaAbaixoCusto ? <span className="text-orange-300">Atenção: venda abaixo do custo.</span> : undefined}
+          className="col-span-2 sm:col-span-1"
+        >
           <input className="campo tabular" inputMode="decimal" value={venda} onChange={(e) => setVenda(e.target.value)} placeholder="0,00" />
         </Campo>
       </div>
@@ -175,6 +204,7 @@ export function ProdutoForm({ produto, base }: { produto?: Produto; base?: Produ
       <div>
         <span className="rotulo">Estoque mínimo por loja</span>
         <p className="mb-2 text-xs text-neutral-500">Quando o saldo ficar abaixo deste número, o sistema mostra um alerta.</p>
+        {erroMinimo && <p className="mb-2 text-xs text-rose-400">{erroMinimo}</p>}
         <div className="grid grid-cols-2 gap-3">
           {lojas.map((l) => (
             <div key={l.id} className="rounded-lg border border-borda bg-painel2 p-3">
@@ -207,6 +237,8 @@ export function ProdutoForm({ produto, base }: { produto?: Produto; base?: Produ
         </p>
       )}
 
+      </fieldset>
+      {!somenteLeitura && (
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
         <button type="button" className="btn-secundario" onClick={() => router.back()}>
           Cancelar
@@ -216,6 +248,7 @@ export function ProdutoForm({ produto, base }: { produto?: Produto; base?: Produ
           {produto ? 'Salvar alterações' : 'Cadastrar produto'}
         </button>
       </div>
+      )}
     </form>
   );
 }

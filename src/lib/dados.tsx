@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { supabaseNavegador } from './supabase/client';
-import type { Cadastro, Loja, Produto, Usuario } from './tipos';
+import type { Cadastro, Loja, Permissao, Produto, Usuario } from './tipos';
 
 // "Central de dados" do sistema: carrega usuário, lojas e produtos (com saldos)
 // uma vez e mantém tudo atualizado em TEMPO REAL. Assim a busca é instantânea
@@ -13,7 +13,14 @@ interface Dados {
   erro: string | null;
   usuario: Usuario | null;
   ehAdmin: boolean;
+  /** o usuário logado pode fazer esta ação? (admin sempre pode) */
+  pode: (p: Permissao) => boolean;
+  /** lojas ativas */
   lojas: Loja[];
+  /** estoque em que o usuário entrou (com a senha do estoque) */
+  lojaAtual: Loja | undefined;
+  /** as outras lojas (destinos possíveis de transferência) */
+  outrasLojas: Loja[];
   produtos: Produto[];
   categorias: Cadastro[];
   marcas: Cadastro[];
@@ -27,6 +34,8 @@ interface Dados {
 }
 
 const Contexto = createContext<Dados | null>(null);
+
+export const CAMPOS_LOJA = 'id, codigo, nome, cor, ordem, ativa';
 
 const CAMPOS_PRODUTO =
   'id, sku, ean, nome, categoria_id, marca_id, unidade, preco_custo, preco_venda, custo_medio, foto_path, observacoes, ativo, ml_item_id, criado_em, atualizado_em, estoques:produto_loja(loja_id, saldo, estoque_minimo)';
@@ -71,7 +80,7 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
     try {
       const [{ data: auth }, lojasR, catR, marR, prods] = await Promise.all([
         sb.auth.getUser(),
-        sb.from('lojas').select('*').eq('ativa', true).order('ordem'),
+        sb.from('lojas').select(CAMPOS_LOJA).eq('ativa', true).order('ordem'),
         sb.from('categorias').select('id, nome').order('nome'),
         sb.from('marcas').select('id, nome').order('nome'),
         carregarTodosProdutos(),
@@ -114,6 +123,7 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'produto_loja' }, agendar)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'produtos' }, agendar)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'operacoes' }, agendar)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'transferencias' }, agendar)
       .subscribe();
     // ao voltar para a aba, garante dados frescos
     const aoFocar = () => document.visibilityState === 'visible' && agendar();
@@ -128,12 +138,21 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
     const mapaProdutos = new Map(produtos.map((p) => [p.id, p]));
     const mapaCat = new Map(categorias.map((c) => [c.id, c.nome]));
     const mapaMarca = new Map(marcas.map((c) => [c.id, c.nome]));
+    const ehAdmin = usuario?.perfil === 'admin';
+    const pode = (p: Permissao) => {
+      if (!usuario) return false;
+      if (ehAdmin) return true;
+      return Boolean(usuario[`perm_${p}` as keyof Usuario]);
+    };
     return {
       carregando,
       erro,
       usuario,
-      ehAdmin: usuario?.perfil === 'admin',
+      ehAdmin,
+      pode,
       lojas,
+      lojaAtual: lojas.find((l) => l.id === usuario?.loja_atual),
+      outrasLojas: lojas.filter((l) => l.id !== usuario?.loja_atual),
       produtos,
       categorias,
       marcas,

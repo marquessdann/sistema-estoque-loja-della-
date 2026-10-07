@@ -16,6 +16,7 @@ Um cadastro único de produtos, saldo separado por loja, transferências "tudo o
 | [docs/HOSPEDAGEM.md](docs/HOSPEDAGEM.md) | Passo a passo para colocar no ar (Supabase + Vercel + backup + domínio próprio) |
 | [docs/MANUAL.md](docs/MANUAL.md) | Manual rápido: cadastrar produto, entrada com NF, transferir, inventário... |
 | [docs/TESTES.md](docs/TESTES.md) | Lista de testes para confirmar que tudo funciona |
+| [docs/AUDITORIA.md](docs/AUDITORIA.md) | Auditoria completa: checklist, matriz de permissões, problemas, correções e resultados dos testes |
 
 ## Tecnologia
 
@@ -32,7 +33,7 @@ Um cadastro único de produtos, saldo separado por loja, transferências "tudo o
 - **Funções do banco (RPC):** fazem todo lançamento numa única transação:
   - `registrar_entrada`
   - `registrar_saida`
-  - `registrar_transferencia`
+  - `registrar_transferencia`, `estornar_transferencia`
   - `registrar_ajuste`
   - `estornar_operacao`
 - **Saldo nunca negativo:** é verificado nas funções (com mensagem clara) e garantido por `CHECK (saldo >= 0)`.
@@ -41,7 +42,12 @@ Um cadastro único de produtos, saldo separado por loja, transferências "tudo o
   - só usuários logados e ativos leem dados;
   - o aplicativo não tem permissão de gravar diretamente em saldos ou movimentações;
   - auditoria, usuários e configurações são só do administrador.
-- **Limite de 3 usuários ativos** e "sempre 1 administrador": regras dentro do banco (trigger).
+- **Limite de 3 usuários ativos**, "sempre 1 administrador" e cadastro só por convite do administrador: regras dentro do banco.
+- **Permissões por operador** (entrada, saída, transferir, inventário, estornar, produtos, relatórios, histórico) conferidas em toda função do banco.
+- **Estoque com senha:** ao entrar, a pessoa escolhe o estoque (DELLA ESTOQUE ou DELLA FULL ML) e digita a senha dele. Entradas, saídas, inventário e transferências só acontecem no estoque em que ela está (o banco confere).
+- **Transferência imediata** (sai de uma loja e entra na outra na hora), sempre a partir do estoque atual, com confirmação reforçada e estorno.
+- **Log de atividades** só para o administrador: quem fez cada mudança.
+- **Anti-duplicidade:** cada formulário envia uma chave única; reenvio não grava de novo.
 - **Custo médio ponderado** é recalculado a cada entrada com custo informado.
 - **Nota fiscal:**
   - chave de acesso validada (44 dígitos e dígito verificador);
@@ -52,8 +58,13 @@ Um cadastro único de produtos, saldo separado por loja, transferências "tudo o
 
 ```
 supabase/
-  01_estrutura.sql        ← banco completo: tabelas, regras, funções, segurança, as 2 lojas
+  01_estrutura.sql        ← banco (versão 1): tabelas, regras, funções, segurança, as 2 lojas
+  03_versao2_permissoes_transferencias.sql ← versão 2: estoque com senha, permissões por operador,
+                             transferência imediata, log de atividades, anti-duplicidade (rodar depois do 01)
   02_dados_exemplo.sql    ← produtos de exemplo (pinças, navalha...) com saldo inicial
+testes/
+  banco.sql               ← 99 testes automáticos das regras do banco
+  api_permissoes.sh       ← 42 tentativas de burlar a API como operador
 src/
   app/
     login/, redefinir-senha/     ← telas públicas

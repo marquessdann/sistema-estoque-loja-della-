@@ -2,7 +2,7 @@
 
 import { ArrowRight, Trash2 } from 'lucide-react';
 import { useDados } from '@/lib/dados';
-import { estoqueNaLoja, moeda, numero } from '@/lib/formato';
+import { disponivelNaLoja, estoqueNaLoja, moeda, numero } from '@/lib/formato';
 import type { Loja } from '@/lib/tipos';
 import { LojaTag } from './loja';
 import { CampoQuantidade, Vazio } from './ui';
@@ -57,8 +57,9 @@ export function ListaItens({
         const p = produtoPorId(item.produto_id);
         if (!p) return null;
         const saldoOrigem = lojaOrigem ? estoqueNaLoja(p, lojaOrigem.id).saldo : null;
+        const dispOrigem = lojaOrigem ? disponivelNaLoja(p, lojaOrigem.id) : null;
         const saldoDestino = lojaDestino ? estoqueNaLoja(p, lojaDestino.id).saldo : null;
-        const erro = erroDoItem(item, modo === 'entrada' ? null : saldoOrigem);
+        const erro = erroDoItem(item, modo === 'entrada' ? null : dispOrigem);
         const qtd = Number(item.quantidade) || 0;
         return (
           <div
@@ -78,12 +79,12 @@ export function ListaItens({
             </div>
 
             <div className="mt-3 flex flex-wrap items-end gap-3">
-              <div className="w-28">
+              <div className="w-36">
                 <span className="rotulo text-xs">Quantidade</span>
                 <CampoQuantidade
                   valor={item.quantidade}
                   aoMudar={(v) => atualizar(i, { quantidade: v })}
-                  max={modo === 'entrada' ? undefined : (saldoOrigem ?? undefined)}
+                  max={modo === 'entrada' ? undefined : (dispOrigem ?? undefined)}
                 />
               </div>
 
@@ -116,9 +117,9 @@ export function ListaItens({
 
               {modo === 'saida' && lojaOrigem && (
                 <div className="pb-2.5 text-sm text-suave">
-                  Disponível <b className="tabular text-white">{saldoOrigem}</b>
+                  Disponível <b className="tabular text-white">{dispOrigem}</b>
                   <ArrowRight className="mx-1 inline h-3 w-3" />
-                  fica <b className="tabular text-white">{Math.max(0, (saldoOrigem ?? 0) - qtd)}</b>
+                  saldo fica <b className="tabular text-white">{Math.max(0, (saldoOrigem ?? 0) - qtd)}</b>
                 </div>
               )}
 
@@ -126,9 +127,9 @@ export function ListaItens({
                 <div className="flex flex-wrap gap-x-4 gap-y-1 pb-2 text-sm text-suave">
                   <span className="flex items-center gap-1">
                     <LojaTag loja={lojaOrigem} tamanho="sm" />
-                    <span className="tabular">{saldoOrigem}</span>
+                    <span className="tabular" title="disponível">{dispOrigem}</span>
                     <ArrowRight className="h-3 w-3" />
-                    <b className="tabular text-white">{Math.max(0, (saldoOrigem ?? 0) - qtd)}</b>
+                    <b className="tabular text-white">{Math.max(0, (dispOrigem ?? 0) - qtd)}</b>
                   </span>
                   <span className="flex items-center gap-1">
                     <LojaTag loja={lojaDestino} tamanho="sm" />

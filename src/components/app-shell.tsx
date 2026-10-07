@@ -13,6 +13,7 @@ import {
   PackagePlus,
   Package,
   Receipt,
+  ScrollText,
   Settings,
   Truck,
   Users,
@@ -25,40 +26,47 @@ import { toast } from 'sonner';
 import { useDados } from '@/lib/dados';
 import { mensagemErro } from '@/lib/erros';
 import { supabaseNavegador } from '@/lib/supabase/client';
+import type { Permissao } from '@/lib/tipos';
+import { EscolherEstoque } from './escolher-estoque';
 import { LojaTag } from './loja';
+import { corTexto } from '@/lib/formato';
 import { Carregando, Campo, Modal } from './ui';
 
-const MENU = [
+// "perm": só aparece para quem tem a permissão (o banco também bloqueia)
+const MENU: { href: string; rotulo: string; icone: typeof Package; perm?: Permissao }[] = [
   { href: '/', rotulo: 'Painel', icone: LayoutDashboard },
   { href: '/produtos', rotulo: 'Produtos', icone: Package },
-  { href: '/entrada', rotulo: 'Entrada', icone: PackagePlus },
-  { href: '/saida', rotulo: 'Saída', icone: PackageMinus },
-  { href: '/transferencia', rotulo: 'Transferir', icone: ArrowLeftRight },
-  { href: '/inventario', rotulo: 'Inventário', icone: ClipboardCheck },
-  { href: '/movimentacoes', rotulo: 'Movimentações', icone: History },
+  { href: '/entrada', rotulo: 'Entrada', icone: PackagePlus, perm: 'entrada' },
+  { href: '/saida', rotulo: 'Saída', icone: PackageMinus, perm: 'saida' },
+  { href: '/transferencia', rotulo: 'Transferir', icone: ArrowLeftRight, perm: 'transferir' },
   { href: '/transferencias', rotulo: 'Histórico de transferências', icone: Truck },
+  { href: '/inventario', rotulo: 'Inventário', icone: ClipboardCheck, perm: 'inventario' },
+  { href: '/movimentacoes', rotulo: 'Movimentações', icone: History },
   { href: '/notas', rotulo: 'Notas fiscais', icone: Receipt },
-  { href: '/relatorios', rotulo: 'Relatórios', icone: ChartColumn },
+  { href: '/relatorios', rotulo: 'Relatórios', icone: ChartColumn, perm: 'relatorios' },
 ];
 const MENU_ADMIN = [
-  { href: '/usuarios', rotulo: 'Usuários', icone: Users },
+  { href: '/log', rotulo: 'Log de atividades', icone: ScrollText },
+  { href: '/usuarios', rotulo: 'Usuários e permissões', icone: Users },
   { href: '/configuracoes', rotulo: 'Configurações', icone: Settings },
 ];
 const MENU_CELULAR = [
   { href: '/', rotulo: 'Painel', icone: LayoutDashboard },
   { href: '/produtos', rotulo: 'Produtos', icone: Package },
   { href: '/transferencia', rotulo: 'Transferir', icone: ArrowLeftRight },
-  { href: '/entrada', rotulo: 'Entrada', icone: PackagePlus },
+  { href: '/movimentacoes', rotulo: 'Histórico', icone: History },
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const { carregando, erro, usuario, ehAdmin, lojas } = useDados();
+  const { carregando, erro, usuario, ehAdmin, pode, lojaAtual } = useDados();
+  const [trocarEstoque, setTrocarEstoque] = useState(false);
   const caminho = usePathname();
   const [menuAberto, setMenuAberto] = useState(false);
   const [trocarSenha, setTrocarSenha] = useState(false);
 
   const ativo = (href: string) => (href === '/' ? caminho === '/' : caminho.startsWith(href));
-  const itens = ehAdmin ? [...MENU, ...MENU_ADMIN] : MENU;
+  const permitidos = MENU.filter((m) => !m.perm || pode(m.perm));
+  const itens = ehAdmin ? [...permitidos, ...MENU_ADMIN] : permitidos;
 
   async function sair() {
     await supabaseNavegador().auth.signOut();
@@ -83,6 +91,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </div>
     );
   }
+
+  // sem estoque escolhido: primeiro escolhe o estoque (com a senha dele)
+  if (!lojaAtual) return <EscolherEstoque />;
 
   const navegacao = (
     <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-3 py-2">
@@ -127,24 +138,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <Image src="/logo.png" alt="DELLA Distribuidora de Produtos" width={120} height={109} priority />
           <span className="text-[11px] font-semibold uppercase tracking-[0.25em] text-dourado">Controle de estoque</span>
         </Link>
-        <div className="flex flex-wrap justify-center gap-1 px-3 py-3">
-          {lojas.map((l) => (
-            <LojaTag key={l.id} loja={l} tamanho="sm" />
-          ))}
+        <div className="px-3 py-3 text-center">
+          <div className="text-[10px] uppercase tracking-widest text-suave">Você está no estoque</div>
+          <div className="mt-1">
+            <LojaTag loja={lojaAtual} tamanho="lg" />
+          </div>
         </div>
         {navegacao}
         {rodapeUsuario}
       </aside>
 
       {/* Barra superior (celular) */}
-      <header className="sticky top-0 z-30 flex items-center justify-between border-b border-borda bg-preto/95 px-4 py-2 backdrop-blur lg:hidden">
-        <Link href="/" className="flex items-center gap-2">
-          <Image src="/logo-mark.png" alt="DELLA" width={40} height={31} priority />
-          <span className="font-titulo text-lg font-extrabold tracking-wide">
-            DELL<span className="text-dourado">A</span>
-          </span>
+      <header className="sticky top-0 z-30 grid grid-cols-[44px_1fr_44px] items-center border-b border-borda bg-preto/95 px-3 py-2 backdrop-blur lg:hidden">
+        <span />
+        <Link href="/" className="flex justify-center" aria-label="DELLA — início">
+          <Image src="/logo.png" alt="DELLA Distribuidora de Produtos" width={84} height={76} priority />
         </Link>
-        <button className="btn-fantasma" onClick={() => setMenuAberto(true)} aria-label="Abrir menu">
+        <button className="btn-fantasma justify-self-end" onClick={() => setMenuAberto(true)} aria-label="Abrir menu">
           <Menu className="h-6 w-6" />
         </button>
       </header>
@@ -163,9 +173,25 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       )}
 
-      <main className="min-w-0 flex-1 px-4 pb-28 pt-4 sm:px-6 lg:px-8 lg:pb-10 lg:pt-8">
-        <div className="mx-auto max-w-6xl">{children}</div>
+      <main className="min-w-0 flex-1 px-4 pb-28 pt-4 sm:px-6 lg:px-8 lg:pb-10 lg:pt-6">
+        <div className="mx-auto max-w-6xl">
+          {/* Faixa do estoque atual: sempre visível, para ninguém lançar no estoque errado */}
+          <div
+            className="mb-5 flex flex-wrap items-center justify-between gap-2 rounded-xl px-4 py-2.5 font-titulo text-sm font-bold uppercase tracking-wide"
+            style={{ backgroundColor: lojaAtual.cor, color: corTexto(lojaAtual.cor) }}
+          >
+            <span>Estoque: {lojaAtual.nome}</span>
+            <button
+              onClick={() => setTrocarEstoque(true)}
+              className="rounded-lg border border-current px-3 py-1 text-xs font-semibold normal-case opacity-90 hover:opacity-100"
+            >
+              Trocar de estoque
+            </button>
+          </div>
+          {children}
+        </div>
       </main>
+      {trocarEstoque && <EscolherEstoque aoCancelar={() => setTrocarEstoque(false)} />}
 
       {/* Barra inferior com botões grandes (celular) */}
       <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-borda bg-painel/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden">

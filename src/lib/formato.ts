@@ -1,4 +1,4 @@
-import type { Produto, TipoOperacao } from './tipos';
+import type { Produto, StatusTransferencia, TipoOperacao } from './tipos';
 
 // Funções para mostrar números, valores e datas no padrão brasileiro.
 
@@ -68,13 +68,17 @@ export const MOTIVOS_SAIDA = [
   { valor: 'perda', rotulo: 'Perda / extravio' },
   { valor: 'avaria', rotulo: 'Avaria / defeito' },
   { valor: 'uso_interno', rotulo: 'Uso interno' },
-  { valor: 'outro', rotulo: 'Outro' },
+  { valor: 'devolucao_fornecedor', rotulo: 'Devolução ao fornecedor' },
+  { valor: 'outro', rotulo: 'Outro (descreva na observação)' },
 ];
 
 const ROTULO_MOTIVO: Record<string, string> = Object.fromEntries(
   [...MOTIVOS_ENTRADA, ...MOTIVOS_SAIDA].map((m) => [m.valor, m.rotulo.split(' (')[0]]),
 );
-ROTULO_MOTIVO.transferencia = 'Transferência entre lojas';
+Object.assign(ROTULO_MOTIVO, {
+  transferencia: 'Transferência entre lojas',
+  outro: 'Outro',
+});
 
 export const rotuloMotivo = (m: string | null | undefined) => (m ? (ROTULO_MOTIVO[m] ?? m) : '');
 
@@ -82,10 +86,16 @@ export const UNIDADES = ['UN', 'KIT', 'CX', 'PC', 'PAR', 'JG', 'CJ', 'PCT'];
 
 // Saldo/mínimo de um produto numa loja
 export function estoqueNaLoja(p: Produto, lojaId: number) {
-  return p.estoques.find((e) => e.loja_id === lojaId) ?? { loja_id: lojaId, saldo: 0, estoque_minimo: 0 };
+  const e = p.estoques.find((x) => x.loja_id === lojaId);
+  return { loja_id: lojaId, saldo: e?.saldo ?? 0, estoque_minimo: e?.estoque_minimo ?? 0 };
 }
 
-export const saldoTotal = (p: Produto) => p.estoques.reduce((s, e) => s + e.saldo, 0);
+// Quanto pode sair da loja (o saldo atual)
+export const disponivelNaLoja = (p: Produto, lojaId: number) => estoqueNaLoja(p, lojaId).saldo;
+
+// Total nas lojas
+export const saldoTotal = (p: Produto, lojaIds?: number[]) =>
+  p.estoques.filter((e) => !lojaIds || lojaIds.includes(e.loja_id)).reduce((s, e) => s + e.saldo, 0);
 
 export const abaixoDoMinimo = (p: Produto, lojaId: number) => {
   const e = estoqueNaLoja(p, lojaId);
@@ -124,6 +134,7 @@ export function corTexto(hex: string) {
 export function sugestaoTransferencia(p: Produto, lojaId: number, lojaIds: number[]) {
   const e = estoqueNaLoja(p, lojaId);
   const falta = e.estoque_minimo - e.saldo;
+
   if (falta <= 0) return null;
   let melhor: { origemId: number; quantidade: number } | null = null;
   for (const outra of lojaIds) {
@@ -140,3 +151,21 @@ export function sugestaoTransferencia(p: Produto, lojaId: number, lojaIds: numbe
 // Converte AAAA-MM-DD (dia no horário do Brasil/local) em instante ISO para filtros
 export const inicioDoDia = (d: string) => new Date(`${d}T00:00:00`).toISOString();
 export const fimDoDia = (d: string) => new Date(`${d}T23:59:59.999`).toISOString();
+
+export const STATUS_TRANSF: Record<StatusTransferencia, { rotulo: string; cor: string }> = {
+  concluida: { rotulo: 'Concluída', cor: 'text-emerald-300 bg-emerald-400/10 border-emerald-400/40' },
+  estornada: { rotulo: 'Estornada', cor: 'text-rose-300 bg-rose-400/10 border-rose-400/40' },
+};
+
+// Código de barras: só números; com 8, 12, 13 ou 14 dígitos confere o dígito verificador (GTIN)
+export function eanValido(ean: string) {
+  if (!/^\d{4,14}$/.test(ean)) return false;
+  const n = ean.length;
+  if (![8, 12, 13, 14].includes(n)) return true;
+  let soma = 0;
+  for (let i = 0; i < n - 1; i++) soma += Number(ean[i]) * ((n - 1 - i) % 2 === 1 ? 3 : 1);
+  return (10 - (soma % 10)) % 10 === Number(ean[n - 1]);
+}
+
+// Identificador único de um formulário: se o mesmo envio chegar 2 vezes, o banco não duplica
+export const novaChave = () => crypto.randomUUID();
