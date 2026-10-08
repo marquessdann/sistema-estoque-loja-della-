@@ -7,7 +7,7 @@
 --  O que este arquivo faz (pode rodar de novo: nada é lançado em dobro):
 --   1. Cadastra 49 produtos com SKU, código de barras, categoria, marca,
 --      código do fornecedor, custo, estoque mínimo, NCM, CEST e origem.
---   2. Cadastra os 4 kits de pinças com seus componentes.
+--   2. Cadastra os 5 kits (4 de pinças e 1 de hennas) com seus componentes.
 --   3. Lança o histórico real no DELLA ESTOQUE, uma vez cada (planilha e
 --      notas fiscais são os mesmos lançamentos):
 --        23/09/2026  Entrada  Pedido 3108 (Elementar) .......... Enaldinho
@@ -85,7 +85,8 @@ declare
     {"sku": "KIT-PIN-CAN-3", "nome": "Kit 3 Pinças Caneladas 9cm", "componentes": [{"sku": "PIN-CAN-PFI-003-2321303", "quantidade": 1}, {"sku": "PIN-CAN-OBL-001-2311303", "quantidade": 1}, {"sku": "PIN-CAN-RET-002-2341303", "quantidade": 1}]},
     {"sku": "KIT-PIN-INX-3", "nome": "Kit 3 Pinças Aço Inox", "componentes": [{"sku": "PIN-INX-PFI-006-2271504", "quantidade": 1}, {"sku": "PIN-INX-RET-005-2264504", "quantidade": 1}, {"sku": "PIN-INX-OBL-004-2260504", "quantidade": 1}]},
     {"sku": "KIT-PIN-LAQ-3", "nome": "Kit 3 Pinças Laqueadas", "componentes": [{"sku": "PIN-LAQ-PFI-009-2291504", "quantidade": 1}, {"sku": "PIN-LAQ-OBL-007-2280504", "quantidade": 1}, {"sku": "PIN-LAQ-RED-008-2284504", "quantidade": 1}]},
-    {"sku": "KIT-PIN-INX-PF", "nome": "Kit 3 Pinças Inox Ponta Fina", "componentes": [{"sku": "PIN-INX-PFI-006-2271504", "quantidade": 3}]}
+    {"sku": "KIT-PIN-INX-PF", "nome": "Kit 3 Pinças Inox Ponta Fina", "componentes": [{"sku": "PIN-INX-PFI-006-2271504", "quantidade": 3}]},
+    {"sku": "KIT-HEN-CAS-3", "nome": "Kit Henna Castanho Claro, Médio e Escuro", "marca": "Master", "componentes": [{"sku": "HEN-MAS-CCL-001-406647", "quantidade": 1}, {"sku": "HEN-MAS-CMD-003-406654", "quantidade": 1}, {"sku": "HEN-MAS-CES-002-406661", "quantidade": 1}]}
   ]';
 begin
   select id, loja_atual into v_ceo, v_loja_antes from public.usuarios where cargo = 'ceo' and ativo order by criado_em limit 1;
@@ -119,7 +120,7 @@ begin
   for v_k in select * from jsonb_array_elements(v_kits) loop
     v_id := (select id from public.produtos where sku = v_k ->> 'sku');
     v_id := public.salvar_produto(jsonb_build_object('id', v_id, 'sku', v_k ->> 'sku', 'nome', v_k ->> 'nome',
-      'categoria', 'Kits', 'marca', 'Solingen', 'unidade', 'KIT'));
+      'categoria', 'Kits', 'marca', coalesce(v_k ->> 'marca', 'Solingen'), 'unidade', 'KIT'));
     perform public.salvar_kit(v_id, (
       select jsonb_agg(jsonb_build_object('produto_id', p.id, 'quantidade', (c ->> 'quantidade')::int))
         from jsonb_array_elements(v_k -> 'componentes') c join public.produtos p on p.sku = c ->> 'sku'));

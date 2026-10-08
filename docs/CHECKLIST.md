@@ -94,7 +94,7 @@ Os testes automáticos rodaram do zero num banco limpo, depois da última mudan�
 | 44 | Cadastrar os produtos da planilha pelos **SKUs** | ✅ **49 produtos** (`supabase/06_produtos_della.sql`) |
 | 45 | Quantidade, fornecedor e datas de entrada e saída | ✅ 8 lançamentos com as datas reais, sem repetir planilha e nota; **os 49 saldos batem com a planilha (2.460 unidades)** |
 | 46 | Custo, NCM, CEST (Tabela Fiscal) | ✅ custo de todos; NCM/CEST/origem de 29 produtos |
-| 47 | Kits da planilha (Kit 3 Pinças…) | ✅ **4 kits**: a baixa de 1 kit tira cada pinça do estoque; mostra "quantos kits dá para montar" |
+| 47 | Kits da planilha (Kit 3 Pinças…) e Kit Henna (KIT-HEN-CAS-3) | ✅ **5 kits** (arquivo 09 para o Kit Henna): a baixa de 1 kit tira cada pinça do estoque; mostra "quantos kits dá para montar" |
 | 48 | NF 16.653 (Itapema), NF 46.780 (Vermonth), Pedido 3136 (Elementar) | ✅ com chave de acesso conferida, lotes/validades na observação, custos com desconto |
 
 **Para você conferir** (dados que faltaram ou divergiram nos arquivos):
