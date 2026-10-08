@@ -72,9 +72,10 @@ supabase/
   05_kits_e_fiscal.sql    ← kits e NCM/CEST/origem/código do fornecedor
   06_produtos_della.sql   ← os 49 produtos reais + 4 kits + histórico (planilha e notas), depois de criar o CEO
   07_shopee.sql           ← plataforma Shopee na saída
+  08_provas_envio.sql     ← prova de envio (QR da etiqueta + 3 fotos)
   02_dados_exemplo.sql    ← SÓ PARA TESTE: produtos de exemplo (não rodar no sistema de verdade)
 testes/
-  banco.sql               ← 139 testes automáticos das regras do banco
+  banco.sql               ← 152 testes automáticos das regras do banco
   api_permissoes.sh       ← 44 tentativas de burlar a API como funcionário e gerente
 src/
   app/

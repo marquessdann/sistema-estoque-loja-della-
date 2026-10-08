@@ -40,7 +40,7 @@ Problemas encontrados e corrigidos nesta rodada:
 - **Log:** mostrava "venda" cru; agora mostra plataforma, pedido, cliente e NF.
 
 Resultados depois da última mudança, num banco limpo:
-- **139/139** regras do banco;
+- **152/152** regras do banco;
 - **44/44** ataques à API bloqueados (funcionário e gerente);
 - **20/20** cenários no navegador, com os usuários e senhas reais;
 - **21/21** verificações com os produtos reais no celular.
@@ -284,7 +284,7 @@ A tela é só conveniência: a proteção real está nos itens 2 e 3.
 
 | Bateria | Arquivo | Resultado |
 |---|---|---|
-| Regras do banco (estoque atual, senha, cargos, pedidos, plataforma, kits, NCM/CEST, transferência, validações, log, integridade) | `testes/banco.sql` | **139 / 139** ✅ |
+| Regras do banco (estoque atual, senha, cargos, pedidos, plataforma, kits, NCM/CEST, transferência, validações, log, integridade) | `testes/banco.sql` | **152 / 152** ✅ |
 | Ataques diretos à API, como funcionário (Antonio) | `testes/api_permissoes.sh` | **36 / 36 bloqueados** 🔒 |
 | Ataques diretos à API, como gerente (Vinicius) | `testes/api_permissoes.sh` | **8 / 8 bloqueados** 🔒 |
 | Ponta a ponta no navegador (Daniel e Vinicius no computador, Antonio no celular), com os usuários e senhas reais, conferindo o banco a cada passo | 20 cenários | **20 / 20** ✅ |

@@ -101,6 +101,10 @@ Se rodar duas vezes, não duplica nada.
 
 Rode também o [`supabase/07_shopee.sql`](../supabase/07_shopee.sql) no **SQL Editor** (**+** → colar → **Run**). Ele acrescenta a **Shopee** como plataforma de saída. Pode rodar a qualquer momento depois do 05; não apaga nada.
 
+### 1.4c — Arquivo 08 (prova de envio com fotos)
+
+Rode também o [`supabase/08_provas_envio.sql`](../supabase/08_provas_envio.sql) no **SQL Editor** (**+** → colar → **Run**), depois do 07. Ele cria a pasta privada **envios** (onde ficam as fotos) e a tela **Envio com fotos**. Não apaga nada e pode rodar de novo.
+
 ### 1.5 — Copiar as chaves de acesso
 
 1. Clique em **Project Settings** (engrenagem) e depois em **API Keys** (ou **API**).

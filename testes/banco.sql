@@ -1,6 +1,6 @@
 -- =====================================================================
 -- Bateria de testes automáticos das regras do banco (estoque e permissões).
--- Roda num banco de TESTE já com 01 + 03 + 04 + 05 + 07 + 02 aplicados (nunca em produção).
+-- Roda num banco de TESTE já com 01 + 03 + 04 + 05 + 07 + 08 + 02 aplicados (nunca em produção).
 -- Usuários de teste: admin = CEO, op1 = GERENTE, op2 = FUNCIONÁRIO.
 -- Cada linha "OK"/"FALHOU" mostra o resultado; ao final, um resumo.
 -- =====================================================================
@@ -406,6 +406,32 @@ select pg_temp.como('op1@teste.com');
 select pg_temp.checar('Gerente também vê o log', (select count(*) from vw_log) > 0);
 select pg_temp.como('op2@teste.com');
 select pg_temp.checar('Funcionário NÃO vê o log de atividades', (select count(*) from vw_log) = 0);
+
+-- ===================== PROVA DE ENVIO (QR + 3 fotos) =====================
+select pg_temp.como('op2@teste.com');
+select registrar_prova_envio('{"codigo":"SHP-900","fotos":["2026/10/a1.jpg","2026/10/a2.jpg","2026/10/a3.jpg"],"chave":"env-1"}'::jsonb) as env \gset
+select pg_temp.checar('Funcionário registra a prova de envio (3 fotos)',
+  (select cardinality(fotos) = 3 and usuario_nome = 'Funcionario Dois' from vw_provas_envio where id = :env));
+select pg_temp.checar('Prova de envio liga sozinha à saída com o mesmo nº de pedido',
+  (select operacao_id = :shp from vw_provas_envio where id = :env));
+select pg_temp.checar('Mesma chave (internet repetiu) não grava 2 vezes',
+  registrar_prova_envio('{"codigo":"SHP-900","fotos":["2026/10/a1.jpg"],"chave":"env-1"}'::jsonb) = :env
+  and (select count(*) from provas_envio) = 1);
+select pg_temp.espera_erro('Prova de envio sem código é recusada',
+  $$select registrar_prova_envio('{"codigo":" ","fotos":["2026/10/a1.jpg"]}'::jsonb)$$, 'Leia o código');
+select pg_temp.espera_erro('Prova de envio com 4 fotos é recusada',
+  $$select registrar_prova_envio('{"codigo":"X1","fotos":["2026/10/a.jpg","2026/10/b.jpg","2026/10/c.jpg","2026/10/d.jpg"]}'::jsonb)$$, 'de 1 a 3');
+select pg_temp.espera_erro('Caminho de foto fora da pasta de envios é recusado',
+  $$select registrar_prova_envio('{"codigo":"X1","fotos":["../produtos/x.jpg"]}'::jsonb)$$, 'Foto inválida');
+select pg_temp.espera_erro('Prova de envio não pode ser apagada pelo usuário',
+  $$delete from provas_envio$$, 'permission denied');
+select pg_temp.espera_erro('Prova de envio não pode ser alterada pelo usuário',
+  $$update provas_envio set codigo = 'outro'$$, 'permission denied');
+select pg_temp.como('op1@teste.com');
+select registrar_prova_envio('{"codigo":"G-1","fotos":["2026/10/g1.jpg"]}'::jsonb) as env2 \gset
+select pg_temp.checar('Gerente vê as provas de todos', (select count(*) from vw_provas_envio) = 2);
+select pg_temp.como('op2@teste.com');
+select pg_temp.checar('Funcionário vê só as provas que ele registrou', (select array_agg(codigo) from vw_provas_envio) = array['SHP-900']);
 
 -- ===================== INTEGRIDADE FINAL =====================
 reset role;

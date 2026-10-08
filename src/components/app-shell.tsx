@@ -2,6 +2,7 @@
 
 import {
   ArrowLeftRight,
+  Camera,
   ChartColumn,
   ClipboardCheck,
   History,
@@ -39,6 +40,7 @@ const MENU: { href: string; rotulo: string; icone: typeof Package; perm?: Permis
   { href: '/produtos', rotulo: 'Produtos', icone: Package },
   { href: '/entrada', rotulo: 'Entrada', icone: PackagePlus, perm: 'entrada' },
   { href: '/saida', rotulo: 'Saída (pedidos)', icone: PackageMinus, perm: 'saida' },
+  { href: '/envios', rotulo: 'Envio com fotos', icone: Camera, perm: 'saida' },
   { href: '/transferencia', rotulo: 'Transferir entre estoques', icone: ArrowLeftRight, perm: 'transferir' },
   { href: '/transferencias', rotulo: 'Histórico de transferências', icone: Truck },
   { href: '/inventario', rotulo: 'Inventário', icone: ClipboardCheck, perm: 'inventario' },
@@ -55,6 +57,7 @@ const MENU_CEO = [
 const MENU_CELULAR: { href: string; rotulo: string; icone: typeof Package; perm?: Permissao }[] = [
   { href: '/', rotulo: 'Painel', icone: LayoutDashboard },
   { href: '/saida', rotulo: 'Saída', icone: PackageMinus, perm: 'saida' },
+  { href: '/envios', rotulo: 'Fotos', icone: Camera, perm: 'saida' },
   { href: '/transferencia', rotulo: 'Transferir', icone: ArrowLeftRight, perm: 'transferir' },
   { href: '/movimentacoes', rotulo: 'Histórico', icone: History },
 ];
@@ -197,7 +200,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {trocarEstoque && <EscolherEstoque aoCancelar={() => setTrocarEstoque(false)} />}
 
       {/* Barra inferior com botões grandes (celular) */}
-      <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-borda bg-painel/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-6 border-t border-borda bg-painel/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden">
         {MENU_CELULAR.filter((m) => !m.perm || pode(m.perm)).map(({ href, rotulo, icone: Icone }) => (
           <Link
             key={href}

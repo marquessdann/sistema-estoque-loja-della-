@@ -244,3 +244,15 @@ export interface RegistroLog {
   origem: 'operacao' | 'auditoria';
   referencia: string;
 }
+
+export interface ProvaEnvio {
+  id: number;
+  codigo: string;
+  fotos: string[];
+  criado_em: string;
+  usuario_id: string | null;
+  usuario_nome: string;
+  loja_id: number | null;
+  loja_nome: string | null;
+  operacao_id: number | null;
+}

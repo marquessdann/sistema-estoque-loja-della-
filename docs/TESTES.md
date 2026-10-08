@@ -94,7 +94,7 @@ Faça estes testes depois de publicar. Marque cada um ✅.
 - [ ] 🤖 Os botões têm pelo menos 40px de altura.
 
 ## Testes automáticos (para técnicos)
-- `testes/banco.sql`: 139 testes das regras do banco (rode num banco de TESTE com 01+03+04+05+02; tudo é desfeito no fim).
+- `testes/banco.sql`: 152 testes das regras do banco (rode num banco de TESTE com 01+03+04+05+07+08+02; tudo é desfeito no fim).
 - `testes/api_permissoes.sh`: 44 tentativas de burlar a API como funcionário e como gerente (devem ser todas bloqueadas).
 - Detalhes e resultados: [`docs/AUDITORIA.md`](AUDITORIA.md).
 

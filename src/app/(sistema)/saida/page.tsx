@@ -1,9 +1,10 @@
 'use client';
 
-import { ArrowLeftRight, PackageMinus, ShoppingBag } from 'lucide-react';
+import { ArrowLeftRight, PackageMinus, QrCode, ShoppingBag } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
+import { LeitorQR } from '@/components/leitor-qr';
 import { erroDoItem, ListaItens, type ItemLancamento } from '@/components/lista-itens';
 import { LojaTag } from '@/components/loja';
 import { ProdutoBusca } from '@/components/produto-busca';
@@ -36,6 +37,7 @@ export default function Saida() {
   const [modo, setModo] = useState<Modo>('pedido');
   const [plataforma, setPlataforma] = useState<Plataforma | null>(null);
   const [pedido, setPedido] = useState('');
+  const [lerQR, setLerQR] = useState(false);
   const [nf, setNf] = useState('');
   const [cliente, setCliente] = useState('');
   const [quando, setQuando] = useState(agoraLocal());
@@ -208,14 +210,20 @@ export default function Saida() {
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <Campo rotulo="Número do pedido" obrigatorio>
-              <input
-                className="campo"
-                name="numero_pedido"
-                value={pedido}
-                maxLength={60}
-                onChange={(e) => setPedido(e.target.value)}
-                placeholder="Ex.: 2000012345678"
-              />
+              <div className="flex gap-2">
+                <input
+                  className="campo flex-1"
+                  name="numero_pedido"
+                  value={pedido}
+                  maxLength={60}
+                  onChange={(e) => setPedido(e.target.value)}
+                  placeholder="Ex.: 2000012345678"
+                />
+                <button type="button" className="btn-secundario shrink-0 px-3" onClick={() => setLerQR(true)} title="Ler o QR da etiqueta">
+                  <QrCode className="h-5 w-5" /> <span className="hidden sm:inline">Ler QR</span>
+                </button>
+              </div>
+              <LeitorQR aberto={lerQR} aoFechar={() => setLerQR(false)} aoLer={(c) => setPedido(c.slice(0, 60))} />
             </Campo>
             <Campo rotulo="Número da NF">
               <input

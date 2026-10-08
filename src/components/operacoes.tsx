@@ -26,6 +26,7 @@ import { formatarChave, formatarCNPJ } from '@/lib/validacao';
 import { LojaTag } from './loja';
 import { abrirAnexoNota } from './nota-fiscal';
 import { ProdutoBusca } from './produto-busca';
+import { FotosDoPedido } from './fotos-envio';
 import { Campo, Carregando, Confirmar, Modal, TipoBadge, Vazio } from './ui';
 
 // Resumo de "de onde para onde" de uma operação
@@ -169,6 +170,8 @@ export function DetalheOperacao({ id, aoFechar }: { id: number | null; aoFechar:
               </Info>
             )}
           </div>
+
+          {op.tipo === 'saida' && op.numero_pedido && <FotosDoPedido codigo={op.numero_pedido} />}
 
           {nota && (
             <div className="rounded-xl border border-borda bg-painel2 p-3">
