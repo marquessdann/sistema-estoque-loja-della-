@@ -246,12 +246,17 @@ Na hora de embalar, pelo celular:
    2. produto **dentro** da caixa;
    3. caixa **lacrada com a etiqueta**.
 4. Pronto: as fotos sobem sozinhas e a câmera já volta para a próxima etiqueta.
+5. Em "Feitos agora", toque em **Dar baixa** ao lado do pedido. A Saída abre com o **nº do pedido já preenchido** (e o Mercado Livre já marcado). É só escolher o produto e confirmar; as fotos ficam dentro do pedido. Depois, **Voltar para as fotos** leva à próxima etiqueta.
+
+A etiqueta é lida **uma vez só**:
+- se a baixa já foi feita antes com o mesmo nº, as fotos entram sozinhas no pedido (aparece "Guardado na saída nº …");
+- se for dar baixa mais tarde, na Saída aparecem os botões **"Fotografados sem baixa"**: 1 toque preenche o nº.
 
 - Errou uma foto? Toque em **Refazer** antes da 3ª.
 - O QR não lê? Use **Digitar o código**.
 - Em "Feitos agora", espere todos ficarem **Salvo** antes de fechar a tela. Se aparecer **Falhou**, toque para tentar de novo.
 - Cada foto sai com o nº do pedido, a data, a hora e quem tirou.
-- **Para as fotos aparecerem dentro do pedido:** na **Saída**, toque no botão **QR** ao lado de "Número do pedido" e leia a mesma etiqueta. Depois, no **Histórico**, abra o pedido: as fotos estão em "Prova de envio".
+- No **Histórico**, abra o pedido: as fotos estão em "Prova de envio".
 - Para procurar fotos antigas, use a busca no fim da tela **Envio com fotos**.
 - Ninguém consegue apagar nem trocar as fotos. O funcionário vê só as dele; o CEO e o gerente veem todas.
 

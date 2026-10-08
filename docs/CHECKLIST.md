@@ -7,7 +7,7 @@ Atualizado em 08/10/2026. Legenda:
 
 Os testes automáticos rodaram do zero num banco limpo, depois da última mudança:
 - **152/152** regras do banco;
-- **12/12** verificações da prova de envio no celular (câmera simulada lendo um QR do Mercado Livre);
+- **15/15** verificações da prova de envio no celular (câmera simulada lendo um QR do Mercado Livre);
 - **44/44** ataques à API bloqueados;
 - **20/20** cenários no navegador (computador e celular);
 - **21/21** verificações com os produtos reais no celular;
@@ -111,10 +111,10 @@ Os testes automáticos rodaram do zero num banco limpo, depois da última mudan�
 |---|---|---|
 | 54 | Plataforma **Shopee** na saída, igual ao ML e ao TikTok Shop | ✅ `supabase/07_shopee.sql` |
 | 55 | **Prova de envio**: no celular, ler o **QR da etiqueta** e tirar **3 fotos** (produto ao lado da caixa, dentro da caixa, caixa lacrada com etiqueta), sem atrasar a operação | ✅ tela **Envio com fotos** (atalho "Fotos" na barra do celular): lê o QR, 3 toques no botão, salva sozinho em segundo plano e já volta para a próxima etiqueta. `supabase/08_provas_envio.sql` |
-| 56 | O pedido "linka direto" | ✅ na Saída, o botão **QR** ao lado do nº do pedido lê a mesma etiqueta; as fotos aparecem dentro do pedido no Histórico |
+| 56 | O pedido "linka direto", **sem ler a etiqueta duas vezes** | ✅ depois das fotos, o botão **Dar baixa** abre a Saída com o nº do pedido (e o Mercado Livre) já preenchidos; se a baixa já existia, as fotos entram sozinhas; na Saída, "Fotografados sem baixa" preenche o nº com 1 toque. As fotos aparecem dentro do pedido no Histórico |
 | 57 | Quanto espaço gasta | ✅ cada foto sai com ≈150–250 KB (reduzida para 1280 px, com carimbo de pedido, data, hora e usuário). O plano grátis do Supabase (1 GB) guarda ≈2.000 envios; o plano Pro (US$ 25/mês) guarda 100 GB |
 
-**Observação:** o QR da etiqueta do Mercado Livre traz o **nº do envio** (não o nº da venda). Por isso, para ligar as fotos ao pedido, use o botão **QR** também na Saída. Etiquetas da Shopee e do TikTok com código de barras são lidas no Android (Chrome); se não ler, há o botão "Digitar o código".
+**Observação:** o QR da etiqueta do Mercado Livre traz o **nº do envio** (não o nº da venda); é esse nº que fica como nº do pedido. Etiquetas da Shopee e do TikTok com código de barras são lidas no Android (Chrome); se não ler, há o botão "Digitar o código".
 
 ## 9. Entrega
 

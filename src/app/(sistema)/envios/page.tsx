@@ -1,6 +1,7 @@
 'use client';
 
-import { Camera, CircleCheck, Keyboard, Loader2, QrCode, RotateCcw, Search, TriangleAlert, Undo2, X } from 'lucide-react';
+import { Camera, CircleCheck, PackageMinus, Keyboard, Loader2, QrCode, RotateCcw, Search, TriangleAlert, Undo2, X } from 'lucide-react';
+import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { MiniaturasEnvio, NOMES_FOTOS } from '@/components/fotos-envio';
@@ -20,6 +21,8 @@ type Envio = {
   codigo: string;
   fotos: Blob[];
   caminhos: (string | null)[];
+  ml: boolean; // etiqueta do Mercado Livre (o QR do ML é um texto {"id": ...})
+  saida?: number | null; // saída já lançada com este nº (as fotos ficam dentro dela)
   status: 'enviando' | 'ok' | 'erro';
   erro?: string;
 };
@@ -41,6 +44,7 @@ export default function Envios() {
   const [fila, setFila] = useState<Envio[]>([]);
   const [versao, setVersao] = useState(0);
   const feitos = useRef(new Set<string>());
+  const ml = useRef(false);
 
   const podeUsar = pode('saida');
 
@@ -75,6 +79,7 @@ export default function Envios() {
         const lido = video.current ? await ler(video.current) : null;
         if (lido && vivo) {
           const c = codigoDaEtiqueta(lido);
+          ml.current = lido.trim().startsWith('{');
           navigator.vibrate?.(80);
           if (feitos.current.has(c)) setRepetido(c);
           else setCodigo(c);
@@ -122,7 +127,7 @@ export default function Envios() {
         setFotos(novas);
         setPrevias((p) => [...p, URL.createObjectURL(blob)]);
       } else {
-        const item: Envio = { chave: novaChave(), codigo, fotos: novas, caminhos: [null, null, null], status: 'enviando' };
+        const item: Envio = { chave: novaChave(), codigo, fotos: novas, caminhos: [null, null, null], ml: ml.current, status: 'enviando' };
         feitos.current.add(codigo);
         setFila((f) => [item, ...f]);
         enviar(item);
@@ -159,11 +164,12 @@ export default function Envios() {
         if (error) throw error;
         item.caminhos[i] = caminho;
       }
-      const { error } = await sb.rpc('registrar_prova_envio', {
+      const { data, error } = await sb.rpc('registrar_prova_envio', {
         p: { codigo: item.codigo, fotos: item.caminhos, chave: item.chave },
       });
       if (error) throw error;
-      atualizar({ status: 'ok', caminhos: [...item.caminhos] });
+      const v = await sb.from('vw_provas_envio').select('operacao_id').eq('id', data).maybeSingle();
+      atualizar({ status: 'ok', caminhos: [...item.caminhos], saida: v.data?.operacao_id ?? null });
       setVersao((v) => v + 1);
     } catch (e) {
       atualizar({ status: 'erro', erro: mensagemErro(e) });
@@ -173,6 +179,7 @@ export default function Envios() {
   function usarManual(e: React.FormEvent) {
     e.preventDefault();
     const c = codigoDaEtiqueta(manual);
+    ml.current = false;
     if (!c) return toast.error('Digite o código da etiqueta.');
     setManual('');
     setDigitar(false);
@@ -320,12 +327,23 @@ export default function Envios() {
           <ul className="divide-y divide-borda text-sm">
             {fila.map((f) => (
               <li key={f.chave} className="flex items-center justify-between gap-2 py-2" data-status={f.status}>
-                <span className="truncate font-semibold">Pedido {f.codigo}</span>
-                {f.status === 'ok' && (
-                  <span className="flex items-center gap-1 text-emerald-300">
-                    <CircleCheck className="h-4 w-4" /> Salvo
-                  </span>
-                )}
+                <span className="min-w-0 truncate font-semibold">Pedido {f.codigo}</span>
+                {f.status === 'ok' &&
+                  (f.saida ? (
+                    <span className="flex items-center gap-1 text-right text-emerald-300">
+                      <CircleCheck className="h-4 w-4 shrink-0" /> Guardado na saída nº {f.saida}
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-2">
+                      <CircleCheck className="h-4 w-4 text-emerald-300" aria-label="Salvo" />
+                      <Link
+                        href={`/saida?pedido=${encodeURIComponent(f.codigo)}${f.ml ? '&plataforma=mercado_livre' : ''}&de=envios`}
+                        className="btn-principal h-9 px-3 text-xs"
+                      >
+                        <PackageMinus className="h-4 w-4" /> Dar baixa
+                      </Link>
+                    </span>
+                  ))}
                 {f.status === 'enviando' && (
                   <span className="flex items-center gap-1 text-suave">
                     <Loader2 className="h-4 w-4 animate-spin" /> Enviando…
@@ -339,7 +357,10 @@ export default function Envios() {
               </li>
             ))}
           </ul>
-          {pendentes > 0 && <p className="mt-2 text-xs text-suave">Não feche esta tela até todos ficarem “Salvo”.</p>}
+          {pendentes > 0 && <p className="mt-2 text-xs text-suave">Não feche esta tela até todos ficarem salvos (✓).</p>}
+          <p className="mt-2 text-xs text-suave">
+            Já deu baixa com este nº? As fotos entram sozinhas no pedido. Ainda não? Toque em <b>Dar baixa</b>: o nº do pedido já vai preenchido.
+          </p>
         </div>
       )}
 

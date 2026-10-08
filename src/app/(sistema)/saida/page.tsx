@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowLeftRight, PackageMinus, QrCode, ShoppingBag } from 'lucide-react';
+import { ArrowLeftRight, Camera, PackageMinus, QrCode, ShoppingBag } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
@@ -23,7 +23,7 @@ import {
   rotuloMotivo,
 } from '@/lib/formato';
 import { supabaseNavegador } from '@/lib/supabase/client';
-import type { Plataforma, Produto } from '@/lib/tipos';
+import type { Plataforma, Produto, ProvaEnvio } from '@/lib/tipos';
 
 // Saída = mercadoria indo para as LOJAS (pedido do Mercado Livre ou do TikTok Shop).
 // Mandar mercadoria para o outro estoque é na tela Transferir.
@@ -48,6 +48,30 @@ export default function Saida() {
   const [ocupado, setOcupado] = useState(false);
   const [ultima, setUltima] = useState<number | null>(null);
   const inicializado = useRef(false);
+  const [deEnvios, setDeEnvios] = useState(false);
+  const [semBaixa, setSemBaixa] = useState<ProvaEnvio[]>([]);
+
+  // veio da tela de fotos: o nº do pedido (e a plataforma, se for etiqueta do ML) já vêm preenchidos
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    const ped = q.get('pedido');
+    if (ped) setPedido(ped.slice(0, 60));
+    const plat = q.get('plataforma');
+    if (plat && plat in PLATAFORMAS) setPlataforma(plat as Plataforma);
+    setDeEnvios(q.get('de') === 'envios');
+  }, []);
+
+  // envios fotografados nos últimos 3 dias que ainda não têm baixa: 1 toque preenche o nº
+  useEffect(() => {
+    supabaseNavegador()
+      .from('vw_provas_envio')
+      .select('*')
+      .is('operacao_id', null)
+      .gte('criado_em', new Date(Date.now() - 3 * 86400000).toISOString())
+      .order('criado_em', { ascending: false })
+      .limit(8)
+      .then(({ data }) => setSemBaixa((data ?? []) as ProvaEnvio[]));
+  }, [ultima]);
 
   useEffect(() => {
     if (inicializado.current || produtos.length === 0) return;
@@ -154,6 +178,11 @@ export default function Saida() {
           <Link href={`/movimentacoes?op=${ultima}`} className="text-dourado underline">
             Ver detalhes
           </Link>
+          {deEnvios && (
+            <Link href="/envios" className="btn-principal mt-2 w-full" data-testid="voltar-fotos">
+              <Camera className="h-4 w-4" /> Voltar para as fotos (próxima etiqueta)
+            </Link>
+          )}
         </div>
       )}
 
@@ -223,6 +252,21 @@ export default function Saida() {
                   <QrCode className="h-5 w-5" /> <span className="hidden sm:inline">Ler QR</span>
                 </button>
               </div>
+              {semBaixa.length > 0 && !pedido && (
+                <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs" data-sem-baixa>
+                  <span className="text-suave">Fotografados sem baixa:</span>
+                  {semBaixa.map((e) => (
+                    <button
+                      key={e.id}
+                      type="button"
+                      className="rounded-full border border-dourado/50 px-2.5 py-1 font-semibold text-dourado hover:bg-dourado/10"
+                      onClick={() => setPedido(e.codigo.slice(0, 60))}
+                    >
+                      {e.codigo}
+                    </button>
+                  ))}
+                </div>
+              )}
               <LeitorQR aberto={lerQR} aoFechar={() => setLerQR(false)} aoLer={(c) => setPedido(c.slice(0, 60))} />
             </Campo>
             <Campo rotulo="Número da NF">
