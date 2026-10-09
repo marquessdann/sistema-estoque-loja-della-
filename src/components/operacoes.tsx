@@ -1,8 +1,8 @@
 'use client';
 
-import { ArrowRight, FileDown, FileSpreadsheet, Paperclip, Undo2 } from 'lucide-react';
+import { ArrowRight, FileDown, FileSpreadsheet, Package, Paperclip, Undo2 } from 'lucide-react';
 import Link from 'next/link';
-import { useCallback, useEffect, useState } from 'react';
+import { Fragment, useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { useDados } from '@/lib/dados';
 import { mensagemErro } from '@/lib/erros';
@@ -26,6 +26,7 @@ import { formatarChave, formatarCNPJ } from '@/lib/validacao';
 import { LojaTag } from './loja';
 import { abrirAnexoNota } from './nota-fiscal';
 import { ProdutoBusca } from './produto-busca';
+import { agruparPorKit } from '@/lib/kits-agrupar';
 import { FotosDoPedido } from './fotos-envio';
 import { Campo, Carregando, Confirmar, Modal, TipoBadge, Vazio } from './ui';
 
@@ -82,7 +83,7 @@ export function LinhaOperacao({ op, aoAbrir }: { op: OperacaoResumo; aoAbrir: ()
 
 // Janela com todos os detalhes de uma operação (itens, nota, estorno)
 export function DetalheOperacao({ id, aoFechar }: { id: number | null; aoFechar: () => void }) {
-  const { versao, pode, lojaAtual } = useDados();
+  const { versao, pode, lojaAtual, produtos } = useDados();
   const [op, setOp] = useState<OperacaoResumo | null>(null);
   const [itens, setItens] = useState<MovimentacaoLinha[]>([]);
   const [nota, setNota] = useState<NotaFiscal | null>(null);
@@ -212,25 +213,32 @@ export function DetalheOperacao({ id, aoFechar }: { id: number | null; aoFechar:
                 </tr>
               </thead>
               <tbody>
-                {itens.map((m) => (
-                  <tr key={m.id}>
-                    <td>
-                      <div className="font-medium">{m.produto_nome}</div>
-                      <div className="text-xs text-suave">SKU {m.sku}</div>
-                    </td>
-                    <td>
-                      <LojaTag loja={{ nome: m.loja_nome, cor: m.loja_cor }} tamanho="sm" />
-                    </td>
-                    <td className={`tabular text-right font-semibold ${m.quantidade > 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                      {m.quantidade > 0 ? '+' : ''}
-                      {m.quantidade}
-                    </td>
-                    <td className="tabular text-right">
-                      <span className="text-suave">{m.saldo_antes}</span> → {m.saldo_apos}
-                    </td>
-                    <td className="tabular text-right text-suave">{m.custo_unitario != null ? moeda(m.custo_unitario) : '—'}</td>
-                  </tr>
-                ))}
+                {agruparPorKit(itens, produtos).map((g) =>
+                  g.tipo === 'linha' ? (
+                    <ItemOperacao key={g.linha.id} m={g.linha} />
+                  ) : (
+                    <Fragment key={g.info.chave}>
+                      <tr className="bg-dourado/5" data-kit={g.info.sku}>
+                        <td colSpan={2}>
+                          <div className="flex items-center gap-1.5 font-semibold">
+                            <Package className="h-4 w-4 shrink-0 text-dourado" /> {g.info.nome}
+                          </div>
+                          <div className="text-xs text-suave">
+                            SKU {g.info.sku} · {g.info.pecas} peças (abaixo)
+                          </div>
+                        </td>
+                        <td className={`tabular whitespace-nowrap text-right font-semibold ${g.linhas[0].quantidade > 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                          {g.linhas[0].quantidade > 0 ? '+' : '-'}
+                          {g.info.kits} kit{g.info.kits > 1 ? 's' : ''}
+                        </td>
+                        <td colSpan={2} />
+                      </tr>
+                      {g.linhas.map((m) => (
+                        <ItemOperacao key={m.id} m={m} peca />
+                      ))}
+                    </Fragment>
+                  ),
+                )}
               </tbody>
             </table>
           </div>
@@ -263,6 +271,32 @@ export function DetalheOperacao({ id, aoFechar }: { id: number | null; aoFechar:
         </Campo>
       </Confirmar>
     </Modal>
+  );
+}
+
+// um produto do lançamento; "peca" = peça de um kit (recuada, abaixo do kit)
+function ItemOperacao({ m, peca = false }: { m: MovimentacaoLinha; peca?: boolean }) {
+  return (
+    <tr>
+      <td>
+        <div className={peca ? 'pl-5 font-medium text-neutral-300' : 'font-medium'}>
+          {peca && '↳ '}
+          {m.produto_nome}
+        </div>
+        <div className={`text-xs text-suave ${peca ? 'pl-5' : ''}`}>SKU {m.sku}</div>
+      </td>
+      <td>
+        <LojaTag loja={{ nome: m.loja_nome, cor: m.loja_cor }} tamanho="sm" />
+      </td>
+      <td className={`tabular text-right font-semibold ${m.quantidade > 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+        {m.quantidade > 0 ? '+' : ''}
+        {m.quantidade}
+      </td>
+      <td className="tabular text-right">
+        <span className="text-suave">{m.saldo_antes}</span> → {m.saldo_apos}
+      </td>
+      <td className="tabular text-right text-suave">{m.custo_unitario != null ? moeda(m.custo_unitario) : '—'}</td>
+    </tr>
   );
 }
 
