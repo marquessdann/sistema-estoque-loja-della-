@@ -1,6 +1,6 @@
 'use client';
 
-import { ClipboardCheck, FileDown, FileSpreadsheet, Search } from 'lucide-react';
+import { ClipboardCheck, FileDown, FileSpreadsheet, Package, Search } from 'lucide-react';
 import { useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { LojaTag } from '@/components/loja';
@@ -15,7 +15,7 @@ import type { Produto } from '@/lib/tipos';
 const MOTIVOS = ['Inventário geral', 'Inventário parcial', 'Saldo inicial', 'Correção de lançamento', 'Outro'];
 
 export default function Inventario() {
-  const { lojaAtual, produtos, loja, categorias, categoriaNome, pode } = useDados();
+  const { lojaAtual, produtos, produtoPorId, loja, categorias, categoriaNome, pode } = useDados();
   const chave = useRef(novaChave());
   // saldo que aparecia na tela quando cada produto foi contado (se mudar no meio, o sistema avisa)
   const [saldoVisto, setSaldoVisto] = useState<Record<number, number>>({});
@@ -37,12 +37,28 @@ export default function Inventario() {
     if (categoria) l = l.filter((p) => p.categoria_id === categoria);
     return buscarProdutos(l, termo);
   }, [ativos, termo, categoria]);
+  // kits não têm estoque próprio: aparecem só para consulta, calculados pelas peças
+  const kitsVisiveis = useMemo(() => {
+    let l = produtos.filter((p) => p.ativo && p.eh_kit && p.kit?.length);
+    if (categoria) l = l.filter((p) => p.categoria_id === categoria);
+    return buscarProdutos(l, termo);
+  }, [produtos, termo, categoria]);
 
   const saldo = (p: Produto) => (lojaId ? estoqueNaLoja(p, lojaId).saldo : 0);
   const contados = ativos.filter((p) => contagem[p.id] !== undefined && contagem[p.id] !== '');
   const diferencas = contados
     .map((p) => ({ p, sistema: saldo(p), contado: Number(contagem[p.id]) }))
     .filter((d) => d.contado !== d.sistema);
+  // quantos kits dá para montar com as peças: pelo sistema e pela contagem digitada
+  const kitsPossiveis = (kit: Produto, usarContagem: boolean) =>
+    Math.min(
+      ...kit.kit.map((c) => {
+        const peca = produtoPorId(c.produto_id);
+        const contado = contagem[c.produto_id];
+        const qtd = usarContagem && contado !== undefined && contado !== '' ? Number(contado) : peca ? saldo(peca) : 0;
+        return Math.floor(Math.max(qtd, 0) / c.quantidade);
+      }),
+    );
   const motivoFinal = motivo === 'Outro' ? motivoOutro.trim() : motivo;
 
 
@@ -121,7 +137,7 @@ export default function Inventario() {
           </div>
 
           {visiveis.length === 0 ? (
-            <Vazio>Nenhum produto encontrado.</Vazio>
+            kitsVisiveis.length === 0 && <Vazio>Nenhum produto encontrado.</Vazio>
           ) : (
             <div className="cartao overflow-x-auto p-0 sm:p-0">
               <table className="tabela">
@@ -160,6 +176,55 @@ export default function Inventario() {
                           }`}
                         >
                           {dif === null ? '—' : dif === 0 ? 'OK' : dif > 0 ? `+${dif}` : dif}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {kitsVisiveis.length > 0 && (
+            <div className="cartao overflow-x-auto p-0 sm:p-0" data-inventario="kits">
+              <div className="flex items-start gap-2 border-b border-borda px-4 py-3 text-sm">
+                <Package className="mt-0.5 h-4 w-4 shrink-0 text-dourado" />
+                <span>
+                  <b>Kits</b>: não se contam. São montados na embalagem com as peças acima, então a quantidade é{' '}
+                  <b>calculada pelas peças</b> e muda sozinha quando você corrige a contagem delas.
+                </span>
+              </div>
+              <table className="tabela">
+                <thead>
+                  <tr>
+                    <th>Kit</th>
+                    <th className="text-right">Kits possíveis</th>
+                    <th className="text-right">Com a contagem</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {kitsVisiveis.map((k) => {
+                    const sistema = kitsPossiveis(k, false);
+                    const comContagem = kitsPossiveis(k, true);
+                    return (
+                      <tr key={k.id} data-sku={k.sku}>
+                        <td>
+                          <div className="font-medium">{k.nome}</div>
+                          <div className="text-xs text-suave">
+                            SKU {k.sku} ·{' '}
+                            {k.kit
+                              .map((c) => {
+                                const peca = produtoPorId(c.produto_id);
+                                return `${c.quantidade}× ${peca?.nome ?? '?'} (${peca ? saldo(peca) : 0})`;
+                              })
+                              .join(' + ')}
+                          </div>
+                        </td>
+                        <td className="tabular text-right font-semibold" data-kits={sistema}>
+                          {sistema}
+                        </td>
+                        <td className={`tabular text-right ${comContagem === sistema ? 'text-neutral-500' : 'font-semibold text-sky-300'}`}>
+                          {comContagem === sistema ? '—' : comContagem}
                         </td>
                       </tr>
                     );
