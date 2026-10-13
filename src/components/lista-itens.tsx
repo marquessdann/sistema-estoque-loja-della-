@@ -31,12 +31,15 @@ export function ListaItens({
   modo,
   lojaOrigem,
   lojaDestino,
+  devolvido,
 }: {
   itens: ItemLancamento[];
   aoMudar: (itens: ItemLancamento[]) => void;
   modo: 'entrada' | 'saida' | 'transferencia';
   lojaOrigem?: Loja;
   lojaDestino?: Loja;
+  /** na edição de uma transferência: quanto volta para a origem ao desfazer a antiga */
+  devolvido?: (produtoId: number) => number;
 }) {
   const { produtoPorId } = useDados();
 
@@ -57,7 +60,7 @@ export function ListaItens({
         const p = produtoPorId(item.produto_id);
         if (!p) return null;
         const saldoOrigem = lojaOrigem ? estoqueNaLoja(p, lojaOrigem.id).saldo : null;
-        const dispOrigem = lojaOrigem ? disponivelNaLoja(p, lojaOrigem.id) : null;
+        const dispOrigem = lojaOrigem ? disponivelNaLoja(p, lojaOrigem.id) + (devolvido?.(p.id) ?? 0) : null;
         const saldoDestino = lojaDestino ? estoqueNaLoja(p, lojaDestino.id).saldo : null;
         const erro = erroDoItem(item, modo === 'entrada' ? null : dispOrigem);
         const qtd = Number(item.quantidade) || 0;

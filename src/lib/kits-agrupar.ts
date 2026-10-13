@@ -89,3 +89,22 @@ export function agruparPorKit<T extends Linha>(linhas: T[], produtos: Produto[])
   }
   return saida;
 }
+
+/** Kits citados na anotação "Kit: <nome> xN" de um lançamento (para reabrir e editar). */
+export function kitsDaObservacao(observacao: string | null | undefined, produtos: Produto[]): { kit: Produto; qtd: number }[] {
+  if (!observacao?.includes('Kit: ')) return [];
+  let resto = observacao.slice(observacao.indexOf('Kit: ') + 5).split(' · ')[0];
+  const achados: { kit: Produto; qtd: number }[] = [];
+  const kits = produtos.filter((p) => p.eh_kit && p.kit?.length).sort((a, b) => b.nome.length - a.nome.length);
+  for (const kit of kits) {
+    const m = new RegExp(`(?:^|, )${escapar(kit.nome)} x(\\d+)`).exec(resto);
+    if (!m) continue;
+    achados.push({ kit, qtd: Number(m[1]) });
+    resto = resto.replace(m[0], '');
+  }
+  return achados;
+}
+
+/** Tira a anotação automática "Kit: ..." do começo da observação. */
+export const semAnotacaoDeKit = (observacao: string | null | undefined) =>
+  (observacao ?? '').startsWith('Kit: ') ? (observacao ?? '').split(' · ').slice(1).join(' · ') : (observacao ?? '');

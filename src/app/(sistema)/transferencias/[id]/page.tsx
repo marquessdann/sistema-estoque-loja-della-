@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowLeft, ArrowRight, Undo2 } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Pencil, Undo2 } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
@@ -16,7 +16,7 @@ import type { Transferencia, TransferenciaItem } from '@/lib/tipos';
 
 export default function DetalheTransferencia() {
   const { id } = useParams<{ id: string }>();
-  const { versao, pode, recarregar, lojaAtual } = useDados();
+  const { versao, pode, ehCeo, recarregar, lojaAtual } = useDados();
   const [t, setT] = useState<Transferencia | null | undefined>(undefined);
   const [itens, setItens] = useState<TransferenciaItem[]>([]);
   const [estornar, setEstornar] = useState(false);
@@ -105,6 +105,17 @@ export default function DetalheTransferencia() {
         </table>
       </div>
 
+      {t.status === 'concluida' && ehCeo && (
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {lojaAtual?.id === t.loja_origem_id ? (
+            <Link href={`/transferencia?editar=${t.id}`} className="btn-secundario" data-acao="editar">
+              <Pencil className="h-4 w-4" /> Editar transferência
+            </Link>
+          ) : (
+            <span className="text-xs text-suave">Para editar, entre no estoque {t.origem_nome} (de onde a mercadoria saiu).</span>
+          )}
+        </div>
+      )}
       {t.status === 'concluida' && pode('estornar') && lojaAtual?.id !== t.loja_destino_id && (
         <p className="text-right text-xs text-suave">Para estornar, entre no estoque {t.destino_nome} (de onde a mercadoria vai sair).</p>
       )}

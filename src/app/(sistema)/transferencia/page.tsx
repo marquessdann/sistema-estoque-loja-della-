@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowLeftRight, ArrowRight, History } from 'lucide-react';
+import { ArrowLeftRight, ArrowRight, History, Pencil } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
@@ -12,11 +12,12 @@ import { Campo, Confirmar, Expansivel, SemPermissao, Titulo } from '@/components
 import { useDados } from '@/lib/dados';
 import { mensagemErro } from '@/lib/erros';
 import { corTexto, disponivelNaLoja, novaChave, numero } from '@/lib/formato';
+import { kitsDaObservacao, semAnotacaoDeKit } from '@/lib/kits-agrupar';
 import { supabaseNavegador } from '@/lib/supabase/client';
-import { NOTA_VAZIA, type NotaForm, type Produto } from '@/lib/tipos';
+import { NOTA_VAZIA, type NotaForm, type Produto, type Transferencia as TransferenciaTipo, type TransferenciaItem } from '@/lib/tipos';
 
 export default function Transferencia() {
-  const { produtos, produtoPorId, loja, pode, lojaAtual, outrasLojas } = useDados();
+  const { produtos, produtoPorId, loja, pode, ehCeo, lojaAtual, outrasLojas, recarregar } = useDados();
   const chave = useRef(novaChave());
   const [ultima, setUltima] = useState<number | null>(null);
   // a mercadoria SEMPRE sai do estoque em que a pessoa está
@@ -30,6 +31,10 @@ export default function Transferencia() {
   const [conferiu, setConferiu] = useState(false);
   const [ocupado, setOcupado] = useState(false);
   const inicializado = useRef(false);
+  // edição (só o CEO): /transferencia?editar=ID
+  const [editando, setEditando] = useState<TransferenciaTipo | null>(null);
+  const [devolvidoKit, setDevolvidoKit] = useState<Record<number, number>>({});
+  const [motivoEdicao, setMotivoEdicao] = useState('');
 
   // destino padrão: a outra loja (com 2 lojas não há o que escolher)
   useEffect(() => {
@@ -44,8 +49,39 @@ export default function Transferencia() {
     const p = q.get('produto') ? produtoPorId(Number(q.get('produto'))) : undefined;
     if (q.get('destino') && Number(q.get('destino')) !== origemId) setDestinoId(Number(q.get('destino')));
     if (p) setItens([{ produto_id: p.id, quantidade: q.get('qtd') ? Number(q.get('qtd')) : 1 }]);
+    if (q.get('editar')) carregarEdicao(Number(q.get('editar')));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [produtos]);
+
+  // reabre a transferência: os kits voltam a aparecer como kits, o resto como produto
+  async function carregarEdicao(id: number) {
+    const sb = supabaseNavegador();
+    const [a, b] = await Promise.all([
+      sb.from('vw_transferencias').select('*').eq('id', id).maybeSingle(),
+      sb.from('vw_transferencia_itens').select('*').eq('transferencia_id', id),
+    ]);
+    const t = a.data as TransferenciaTipo | null;
+    if (!t) return toast.error('Transferência não encontrada.');
+    if (t.status === 'estornada') return toast.error('Esta transferência já foi estornada ou editada.');
+    const resto: Record<number, number> = {};
+    for (const i of (b.data ?? []) as TransferenciaItem[]) resto[i.produto_id] = i.quantidade;
+    const kits = kitsDaObservacao(t.observacao, produtos);
+    const doKit: Record<number, number> = {};
+    for (const { kit, qtd } of kits) {
+      doKit[kit.id] = qtd;
+      for (const c of kit.kit) resto[c.produto_id] = (resto[c.produto_id] ?? 0) - c.quantidade * qtd;
+    }
+    setDevolvidoKit({ ...doKit, ...Object.fromEntries(Object.entries(resto).filter(([, q]) => q > 0)) });
+    setItens([
+      ...kits.map(({ kit, qtd }) => ({ produto_id: kit.id, quantidade: qtd })),
+      ...Object.entries(resto)
+        .filter(([, q]) => q > 0)
+        .map(([pid, q]) => ({ produto_id: Number(pid), quantidade: q })),
+    ]);
+    setDestinoId(t.loja_destino_id);
+    setObs(semAnotacaoDeKit(t.observacao));
+    setEditando(t);
+  }
 
   const origem = loja(origemId);
   const destino = loja(destinoId);
@@ -70,10 +106,26 @@ export default function Transferencia() {
   if (origemId && itens.some((i) => erroDoItem(i, saldoOrigem(i.produto_id))))
     problemas.push('Há quantidades vazias ou maiores que o estoque disponível na loja de origem.');
   if (Object.keys(errosDaNota(nota)).length) problemas.push('Corrija os dados da nota fiscal.');
+  if (editando && !motivoEdicao.trim()) problemas.push('Informe o motivo da edição.');
 
   async function gravar() {
     setOcupado(true);
     try {
+      if (editando) {
+        const { data, error } = await supabaseNavegador().rpc('editar_transferencia', {
+          p: {
+            transferencia_id: editando.id,
+            itens: itens.map((i) => ({ produto_id: i.produto_id, quantidade: Number(i.quantidade) })),
+            observacao: obs,
+            motivo: motivoEdicao,
+          },
+        });
+        if (error) throw error;
+        toast.success(`Transferência nº ${editando.id} corrigida: agora é a nº ${data}.`);
+        await recarregar();
+        window.location.href = `/transferencias/${data}`;
+        return;
+      }
       const { data, error } = await supabaseNavegador().rpc('registrar_transferencia', {
         p: {
           origem_id: origemId,
@@ -102,6 +154,7 @@ export default function Transferencia() {
   }
 
   if (!pode('transferir')) return <SemPermissao texto="Você não tem permissão para fazer transferências." />;
+  if (editando && !ehCeo) return <SemPermissao texto="Só o CEO pode editar transferências." />;
 
   return (
     <div className="space-y-4">
@@ -126,8 +179,30 @@ export default function Transferencia() {
           </Link>
         }
       >
-        Transferir entre estoques
+        {editando ? `Editar transferência nº ${editando.id}` : 'Transferir entre estoques'}
       </Titulo>
+
+      {editando && (
+        <div className="space-y-3 rounded-xl border border-dourado/50 bg-dourado/10 p-3 text-sm" data-editando={editando.id}>
+          <p className="flex items-start gap-2">
+            <Pencil className="mt-0.5 h-4 w-4 shrink-0 text-dourado" />
+            <span>
+              Corrija os produtos e as quantidades. Ao salvar, a transferência nº {editando.id} fica no histórico como
+              <b> editada</b> e é gravada uma nova com os dados certos. A nota fiscal
+              {editando.nf_numero ? ` (NF ${editando.nf_numero})` : ''} e o anexo continuam os mesmos.
+            </span>
+          </p>
+          <Campo rotulo="Motivo da edição" obrigatorio>
+            <input
+              className="campo"
+              name="motivo_edicao"
+              value={motivoEdicao}
+              onChange={(e) => setMotivoEdicao(e.target.value)}
+              placeholder="Ex.: quantidade de kits digitada errada"
+            />
+          </Campo>
+        </div>
+      )}
 
 
       {ultima && (
@@ -161,15 +236,24 @@ export default function Transferencia() {
         <h2 className="font-titulo font-bold">Produtos</h2>
         <ProdutoBusca aoEscolher={adicionar} />
         {origem && destino ? (
-          <ListaItens itens={itens} aoMudar={setItens} modo="transferencia" lojaOrigem={origem} lojaDestino={destino} />
+          <ListaItens
+            itens={itens}
+            aoMudar={setItens}
+            modo="transferencia"
+            lojaOrigem={origem}
+            lojaDestino={destino}
+            devolvido={editando ? (id) => devolvidoKit[id] ?? 0 : undefined}
+          />
         ) : (
           itens.length > 0 && <p className="text-sm text-orange-300">Escolha origem e destino acima.</p>
         )}
       </div>
 
+      {!editando && (
       <Expansivel titulo={<span>Nota fiscal de transferência <span className="text-xs font-normal text-suave">(opcional)</span></span>}>
         <NotaFiscalCampos nota={nota} aoMudar={setNota} anexo={anexo} aoMudarAnexo={setAnexo} />
       </Expansivel>
+      )}
 
       <div className="cartao">
         <Campo rotulo="Observação (opcional)">
@@ -193,7 +277,7 @@ export default function Transferencia() {
           setConfirmar(true);
         }}
       >
-        <ArrowLeftRight className="h-5 w-5" /> Transferir para {destino?.nome}
+        <ArrowLeftRight className="h-5 w-5" /> {editando ? 'Salvar a correção' : `Transferir para ${destino?.nome}`}
       </button>
 
       <Confirmar
