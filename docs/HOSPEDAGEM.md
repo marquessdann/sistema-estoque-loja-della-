@@ -105,6 +105,10 @@ Rode também o [`supabase/07_shopee.sql`](../supabase/07_shopee.sql) no **SQL Ed
 
 Rode também o [`supabase/08_provas_envio.sql`](../supabase/08_provas_envio.sql) no **SQL Editor** (**+** → colar → **Run**), depois do 07. Ele cria a pasta privada **envios** (onde ficam as fotos) e a tela **Envio com fotos**. Não apaga nada e pode rodar de novo.
 
+### 1.4d — Arquivo 13 (prazo do Mercado Livre FULL)
+
+Rode também o [`supabase/13_prazo_full.sql`](../supabase/13_prazo_full.sql) no **SQL Editor**, depois do 12. Ele cria a aba **Prazo FULL** e os avisos de prazo. Não apaga nada e pode rodar de novo.
+
 ### 1.5 — Copiar as chaves de acesso
 
 1. Clique em **Project Settings** (engrenagem) e depois em **API Keys** (ou **API**).

@@ -256,3 +256,13 @@ export interface ProvaEnvio {
   loja_nome: string | null;
   operacao_id: number | null;
 }
+
+export interface LoteFull {
+  id: number;
+  nome: string;
+  inicio: string;
+  dias: number;
+  observacao: string | null;
+  encerrado_em: string | null;
+  criado_em: string;
+}

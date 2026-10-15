@@ -1,6 +1,6 @@
 -- =====================================================================
 -- Bateria de testes automáticos das regras do banco (estoque e permissões).
--- Roda num banco de TESTE já com 01 + 03 + 04 + 05 + 07 + 08 + 02 aplicados (nunca em produção).
+-- Roda num banco de TESTE já com 01 + 03 + 04 + 05 + 07 + 08 + 12 + 13 + 02 aplicados (nunca em produção).
 -- Usuários de teste: admin = CEO, op1 = GERENTE, op2 = FUNCIONÁRIO.
 -- Cada linha "OK"/"FALHOU" mostra o resultado; ao final, um resumo.
 -- =====================================================================
@@ -432,6 +432,35 @@ select registrar_prova_envio('{"codigo":"G-1","fotos":["2026/10/g1.jpg"]}'::json
 select pg_temp.checar('Gerente vê as provas de todos', (select count(*) from vw_provas_envio) = 2);
 select pg_temp.como('op2@teste.com');
 select pg_temp.checar('Funcionário vê só as provas que ele registrou', (select array_agg(codigo) from vw_provas_envio) = array['SHP-900']);
+
+-- ===================== PRAZO DO FULL (contagem e avisos) =====================
+select pg_temp.como('admin@teste.com');
+select salvar_lote_full('{"nome":"Envio teste","inicio":"2026-10-16T10:00:00-03:00","dias":60}'::jsonb) as lote \gset
+select pg_temp.checar('CEO cria lote do FULL com prazo de 60 dias',
+  (select nome = 'Envio teste' and dias = 60 and encerrado_em is null from lotes_full where id = :lote));
+select pg_temp.espera_erro('Lote sem nome é recusado', $$select salvar_lote_full('{"inicio":"2026-10-16T10:00:00Z"}'::jsonb)$$, 'nome');
+select pg_temp.espera_erro('Lote com prazo fora de 1 a 365 dias é recusado',
+  $$select salvar_lote_full('{"nome":"X","inicio":"2026-10-16T10:00:00Z","dias":0}'::jsonb)$$, 'de 1 a 365');
+select salvar_lote_full(format('{"id":%s,"encerrar":true}', :lote)::jsonb);
+select pg_temp.checar('CEO encerra o lote (para de avisar)', (select encerrado_em is not null from lotes_full where id = :lote));
+select salvar_lote_full(format('{"id":%s,"encerrar":false}', :lote)::jsonb);
+select pg_temp.checar('CEO reabre o lote', (select encerrado_em is null from lotes_full where id = :lote));
+select pg_temp.como('op1@teste.com');
+select pg_temp.espera_erro('Gerente NÃO cria lote do FULL',
+  $$select salvar_lote_full('{"nome":"X","inicio":"2026-10-16T10:00:00Z"}'::jsonb)$$, 'CEO');
+select pg_temp.como('op2@teste.com');
+select pg_temp.checar('Funcionário vê os lotes do FULL', (select count(*) from lotes_full) = 1);
+select pg_temp.espera_erro('Funcionário NÃO exclui lote', format('select excluir_lote_full(%s)', :lote), 'CEO');
+select pg_temp.espera_erro('Lote não pode ser alterado direto na tabela', $$update lotes_full set dias = 999$$, 'permission denied');
+select marcar_avisos_full(format('[{"lote_id":%s,"aviso":"critico-5"},{"lote_id":%s,"aviso":"critico-5"}]', :lote, :lote)::jsonb);
+select pg_temp.checar('Funcionário marca o aviso como visto (sem duplicar)',
+  (select count(*) from avisos_full_vistos where aviso = 'critico-5') = 1);
+select pg_temp.como('op1@teste.com');
+select pg_temp.checar('Cada pessoa só vê os próprios avisos vistos', (select count(*) from avisos_full_vistos) = 0);
+select pg_temp.como('admin@teste.com');
+select excluir_lote_full(:lote);
+select pg_temp.checar('CEO exclui lote criado por engano (e os avisos vistos dele)',
+  not exists (select 1 from lotes_full) and (select count(*) from avisos_full_vistos where lote_id = :lote) = 0);
 
 -- ===================== INTEGRIDADE FINAL =====================
 reset role;

@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  AlarmClock,
   ArrowLeftRight,
   Camera,
   ChartColumn,
@@ -31,6 +32,7 @@ import type { Permissao } from '@/lib/tipos';
 import { EscolherEstoque } from './escolher-estoque';
 import { Rodape } from './rodape';
 import { LojaTag } from './loja';
+import { AvisosFull } from './prazo-full';
 import { CARGOS, corTexto } from '@/lib/formato';
 import { Carregando, Campo, Modal } from './ui';
 
@@ -43,6 +45,7 @@ const MENU: { href: string; rotulo: string; icone: typeof Package; perm?: Permis
   { href: '/envios', rotulo: 'Envio com fotos', icone: Camera, perm: 'saida' },
   { href: '/transferencia', rotulo: 'Transferir entre estoques', icone: ArrowLeftRight, perm: 'transferir' },
   { href: '/transferencias', rotulo: 'Histórico de transferências', icone: Truck },
+  { href: '/prazo-full', rotulo: 'Prazo FULL', icone: AlarmClock },
   { href: '/inventario', rotulo: 'Inventário', icone: ClipboardCheck, perm: 'inventario' },
   { href: '/movimentacoes', rotulo: 'Movimentações', icone: History },
   { href: '/notas', rotulo: 'Notas fiscais', icone: Receipt },
@@ -218,6 +221,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </nav>
 
       <TrocarSenha aberto={trocarSenha} aoFechar={() => setTrocarSenha(false)} />
+      <AvisosFull />
     </div>
   );
 }

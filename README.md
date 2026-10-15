@@ -75,7 +75,7 @@ supabase/
   08_provas_envio.sql     ← prova de envio (QR da etiqueta + 3 fotos)
   02_dados_exemplo.sql    ← SÓ PARA TESTE: produtos de exemplo (não rodar no sistema de verdade)
 testes/
-  banco.sql               ← 152 testes automáticos das regras do banco
+  banco.sql               ← 164 testes automáticos das regras do banco
   api_permissoes.sh       ← 44 tentativas de burlar a API como funcionário e gerente
 src/
   app/

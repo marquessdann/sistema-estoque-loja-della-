@@ -260,6 +260,15 @@ A etiqueta é lida **uma vez só**:
 - Para procurar fotos antigas, use a busca no fim da tela **Envio com fotos**.
 - Ninguém consegue apagar nem trocar as fotos. O funcionário vê só as dele; o CEO e o gerente veem todas.
 
+## Prazo do Mercado Livre FULL
+
+No FULL a mercadoria tem **60 dias** para vender; depois disso o Mercado Livre começa a cobrar armazenagem. A aba **Prazo FULL** mostra cada envio (lote) com a contagem regressiva em dias, horas, minutos e segundos e a data em que vence. A cor muda: verde (no prazo), amarelo (faltam 15 dias ou menos), vermelho (5 dias ou menos ou vencido).
+
+- **Novo lote** (só o CEO): nome (ex.: "Envio 16/10"), dia e hora em que a mercadoria entrou no FULL e o prazo em dias (60).
+- **Encerrar**: quando vendeu tudo ou retirou do FULL. O lote para de avisar (pode reabrir).
+- **Avisos**: aparecem em **qualquer tela**, para todos — toda **segunda-feira**, a cada **15 dias** desde o início e faltando **15, 10, 5, 2 e 1 dia**. Depois de vencer, 1 aviso por dia. Cada aviso aparece **uma vez por pessoa** e some no **Ok, vi**.
+- **Ver como fica o aviso**: mostra o pop-up na hora, para conferir.
+
 ## No celular
 
 O sistema foi feito para funcionar bem no celular:
