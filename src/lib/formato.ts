@@ -199,13 +199,13 @@ export const CARGOS: Record<Cargo, { rotulo: string; cor: string; descricao: str
   funcionario: {
     rotulo: 'Funcionário',
     cor: 'bg-slate-100 text-slate-700',
-    descricao: 'O básico: entra nos estoques, transfere e dá baixa. Vê só o que ele lançou.',
+    descricao: 'O básico: entra nos estoques, transfere, dá baixa e faz inventário. Vê só o que ele lançou.',
   },
 };
 
 export function podeCargo(cargo: Cargo, p: Permissao) {
   if (cargo === 'ceo' || cargo === 'gerente') return true;
-  return p === 'saida' || p === 'transferir';
+  return p === 'saida' || p === 'transferir' || p === 'inventario';
 }
 
 // ---------- Plataformas dos pedidos ----------

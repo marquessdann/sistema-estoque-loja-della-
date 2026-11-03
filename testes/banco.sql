@@ -1,6 +1,6 @@
 -- =====================================================================
 -- Bateria de testes automáticos das regras do banco (estoque e permissões).
--- Roda num banco de TESTE já com 01 + 03 + 04 + 05 + 07 + 08 + 12 + 13 + 02 aplicados (nunca em produção).
+-- Roda num banco de TESTE já com 01 + 03 + 04 + 05 + 07 + 08 + 12 + 13 + 14 + 02 aplicados (nunca em produção).
 -- Usuários de teste: admin = CEO, op1 = GERENTE, op2 = FUNCIONÁRIO.
 -- Cada linha "OK"/"FALHOU" mostra o resultado; ao final, um resumo.
 -- =====================================================================
@@ -110,9 +110,8 @@ select pg_temp.checar('Funcionário NÃO lê auditoria', (select count(*) from a
 select pg_temp.espera_erro('Funcionário NÃO estorna', $$select estornar_operacao(1, 'x')$$, 'Sem permissão');
 select pg_temp.espera_erro('Funcionário NÃO dá entrada',
   format($$select registrar_entrada('{"loja_id":%s,"itens":[{"produto_id":%s,"quantidade":1}]}')$$, pg_temp.lid('ESTOQUE'), pg_temp.pid('PIN-FINA')), 'Sem permissão');
-select pg_temp.espera_erro('Funcionário NÃO faz inventário',
-  format($$select registrar_ajuste('{"loja_id":%s,"motivo":"x","itens":[{"produto_id":%s,"quantidade_contada":1}]}')$$, pg_temp.lid('ESTOQUE'), pg_temp.pid('PIN-FINA')), 'Sem permissão');
-select pg_temp.checar('Funcionário pode dar baixa e transferir', tem_permissao('saida') and tem_permissao('transferir') and not tem_permissao('produtos'));
+select pg_temp.checar('Funcionário pode dar baixa, transferir e fazer inventário',
+  tem_permissao('saida') and tem_permissao('transferir') and tem_permissao('inventario') and not tem_permissao('produtos') and not tem_permissao('entrada'));
 
 -- ===================== PERMISSÕES: GERENTE =====================
 select pg_temp.como('op1@teste.com');

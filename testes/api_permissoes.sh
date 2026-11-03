@@ -47,7 +47,6 @@ espera "Funcionário NÃO cria transferência direto na tabela" "$OP" "permissio
 espera "Funcionário NÃO chama função interna fn_movimentar" "$OP" "permission denied|42501|Could not find" -X POST $R/rpc/fn_movimentar -d '{"p_operacao":1,"p_produto":1,"p_loja":1,"p_qtd":100,"p_custo":0}'
 espera "Funcionário NÃO chama a entrada interna (sem regras)" "$OP" "permission denied|42501|Could not find" -X POST $R/rpc/registrar_entrada_interno -d '{"p":{}}'
 espera "Funcionário NÃO dá entrada"                         "$OP" "Sem permissão"      -X POST $R/rpc/registrar_entrada -d '{"p":{"loja_id":1,"itens":[{"produto_id":1,"quantidade":1}]}}'
-espera "Funcionário NÃO faz inventário"                     "$OP" "Sem permissão"      -X POST $R/rpc/registrar_ajuste -d '{"p":{"loja_id":1,"motivo":"x","itens":[{"produto_id":1,"quantidade_contada":0}]}}'
 espera "Funcionário NÃO estorna"                            "$OP" "Sem permissão"      -X POST $R/rpc/estornar_operacao -d '{"p_operacao_id":1,"p_motivo":"x"}'
 espera "Funcionário NÃO lê lançamentos de outros"           "$OP" '^\[\] \[HTTP 200\]' "$R/movimentacoes?select=id&usuario_id=neq.$OID&limit=5"
 espera "Funcionário NÃO lê auditoria (lista vazia)"         "$OP" '^\[\] \[HTTP 200\]' "$R/auditoria?select=id&limit=5"

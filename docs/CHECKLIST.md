@@ -6,7 +6,7 @@ Atualizado em 08/10/2026. Legenda:
 - ⏳ depende de você (contas e serviços externos).
 
 Os testes automáticos rodaram do zero num banco limpo, depois da última mudança:
-- **164/164** regras do banco;
+- **163/163** regras do banco;
 - **15/15** verificações da prova de envio no celular (câmera simulada lendo um QR do Mercado Livre);
 - **44/44** ataques à API bloqueados;
 - **20/20** cenários no navegador (computador e celular);

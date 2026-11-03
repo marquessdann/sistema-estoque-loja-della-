@@ -213,7 +213,8 @@ Limite de **3 usuários ativos**. Não existem caixinhas de permissão: cada pes
 | Entrar nos estoques (com a senha do estoque) | ✅ | ✅ | ✅ |
 | Dar baixa (saída / pedidos) | ✅ | ✅ | ✅ |
 | Transferir entre estoques | ✅ | ✅ | ✅ |
-| Entrada, inventário | ✅ | ✅ | ❌ |
+| Inventário (contar e corrigir quantidades) | ✅ | ✅ | ✅ |
+| Entrada | ✅ | ✅ | ❌ |
 | Cadastrar e editar produtos e kits, inativar | ✅ | ✅ | ❌ (só consulta) |
 | Estornar (autorizar correções) | ✅ | ✅ | ❌ |
 | Ver lançamentos de todos, relatórios, Log de atividades | ✅ | ✅ | ❌ (vê só o que ele lançou) |

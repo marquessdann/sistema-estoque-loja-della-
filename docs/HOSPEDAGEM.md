@@ -109,6 +109,10 @@ Rode também o [`supabase/08_provas_envio.sql`](../supabase/08_provas_envio.sql)
 
 Rode também o [`supabase/13_prazo_full.sql`](../supabase/13_prazo_full.sql) no **SQL Editor**, depois do 12. Ele cria a aba **Prazo FULL** e os avisos de prazo. Não apaga nada e pode rodar de novo.
 
+### 1.4e — Arquivo 14 (funcionário faz inventário)
+
+Rode também o [`supabase/14_funcionario_inventario.sql`](../supabase/14_funcionario_inventario.sql) no **SQL Editor**, depois do 13. Ele libera a tela **Inventário** para o funcionário. Não apaga nada e pode rodar de novo.
+
 ### 1.5 — Copiar as chaves de acesso
 
 1. Clique em **Project Settings** (engrenagem) e depois em **API Keys** (ou **API**).
