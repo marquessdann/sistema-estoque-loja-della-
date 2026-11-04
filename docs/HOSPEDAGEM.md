@@ -113,6 +113,10 @@ Rode também o [`supabase/13_prazo_full.sql`](../supabase/13_prazo_full.sql) no 
 
 Rode também o [`supabase/14_funcionario_inventario.sql`](../supabase/14_funcionario_inventario.sql) no **SQL Editor**, depois do 13. Ele libera a tela **Inventário** para o funcionário. Não apaga nada e pode rodar de novo.
 
+### 1.4f — Arquivo 15 (funcionário cadastra produto e dá entrada)
+
+Rode também o [`supabase/15_funcionario_produtos_entrada.sql`](../supabase/15_funcionario_produtos_entrada.sql) no **SQL Editor**, depois do 14. Não apaga nada e pode rodar de novo.
+
 ### 1.5 — Copiar as chaves de acesso
 
 1. Clique em **Project Settings** (engrenagem) e depois em **API Keys** (ou **API**).

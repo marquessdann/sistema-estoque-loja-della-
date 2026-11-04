@@ -1,6 +1,6 @@
 -- =====================================================================
 -- Bateria de testes automáticos das regras do banco (estoque e permissões).
--- Roda num banco de TESTE já com 01 + 03 + 04 + 05 + 07 + 08 + 12 + 13 + 14 + 02 aplicados (nunca em produção).
+-- Roda num banco de TESTE já com 01 + 03 + 04 + 05 + 07 + 08 + 12 + 13 + 14 + 15 + 02 aplicados (nunca em produção).
 -- Usuários de teste: admin = CEO, op1 = GERENTE, op2 = FUNCIONÁRIO.
 -- Cada linha "OK"/"FALHOU" mostra o resultado; ao final, um resumo.
 -- =====================================================================
@@ -91,11 +91,8 @@ delete from resultado where teste = 'Ninguém consegue ler a senha do estoque';
 
 -- ===================== PERMISSÕES: FUNCIONÁRIO =====================
 select pg_temp.como('op2@teste.com');
-select pg_temp.espera_erro('Funcionário NÃO cadastra produto', $$select salvar_produto('{"nome":"X"}')$$, 'Sem permissão');
 select pg_temp.espera_erro('Funcionário NÃO inativa produto', $$select definir_produto_ativo(1, false)$$, 'Somente o CEO ou o gerente');
 select pg_temp.espera_erro('Funcionário NÃO exclui produto', $$select excluir_produto(1)$$, 'Somente o CEO');
-select pg_temp.espera_erro('Funcionário NÃO importa planilha', $$select importar_produtos('[{"nome":"Y"}]')$$, 'Sem permissão');
-select pg_temp.espera_erro('Funcionário NÃO cria categoria', $$insert into categorias (nome) values ('Hack')$$, 'row-level security');
 select pg_temp.espera_erro('Funcionário NÃO cria/edita loja', $$select salvar_loja('{"nome":"LOJA HACK"}')$$, 'Somente o CEO');
 select pg_temp.espera_erro('Funcionário NÃO altera loja direto', $$update lojas set nome = 'X'$$, 'permission denied');
 select pg_temp.espera_erro('Funcionário NÃO se promove', $$update usuarios set cargo = 'ceo'$$, 'permission denied');
@@ -108,10 +105,9 @@ select pg_temp.espera_erro('Funcionário NÃO chama a entrada interna (sem as re
 select pg_temp.espera_erro('Funcionário NÃO insere transferência direto', $$insert into transferencias (loja_origem_id, loja_destino_id) values (1, 2)$$, 'permission denied');
 select pg_temp.checar('Funcionário NÃO lê auditoria', (select count(*) from auditoria) = 0);
 select pg_temp.espera_erro('Funcionário NÃO estorna', $$select estornar_operacao(1, 'x')$$, 'Sem permissão');
-select pg_temp.espera_erro('Funcionário NÃO dá entrada',
-  format($$select registrar_entrada('{"loja_id":%s,"itens":[{"produto_id":%s,"quantidade":1}]}')$$, pg_temp.lid('ESTOQUE'), pg_temp.pid('PIN-FINA')), 'Sem permissão');
-select pg_temp.checar('Funcionário pode dar baixa, transferir e fazer inventário',
-  tem_permissao('saida') and tem_permissao('transferir') and tem_permissao('inventario') and not tem_permissao('produtos') and not tem_permissao('entrada'));
+select pg_temp.checar('Funcionário pode dar baixa, transferir, inventário, cadastrar produto e dar entrada',
+  tem_permissao('saida') and tem_permissao('transferir') and tem_permissao('inventario') and tem_permissao('produtos')
+  and tem_permissao('entrada') and not tem_permissao('relatorios') and not tem_permissao('estornar'));
 
 -- ===================== PERMISSÕES: GERENTE =====================
 select pg_temp.como('op1@teste.com');
@@ -356,7 +352,6 @@ select pg_temp.espera_erro('Kit não pode ter outro kit como componente',
 select pg_temp.espera_erro('Kit não recebe entrada (não tem estoque próprio)',
   format($$select registrar_entrada('{"loja_id":%s,"itens":[{"produto_id":%s,"quantidade":1}]}')$$, pg_temp.lid('ESTOQUE'), :kit), 'Kit não tem estoque próprio');
 select pg_temp.como('op2@teste.com');
-select pg_temp.espera_erro('Funcionário não monta kit', format($$select salvar_kit(%s, '[]')$$, :kit), 'Sem permissão');
 select pg_temp.no_estoque('op2@teste.com', 'ESTOQUE');
 select pg_temp.saldo('PIN-FINA', 'ESTOQUE') as kf \gset
 select pg_temp.saldo('PIN-RETA', 'ESTOQUE') as kr \gset

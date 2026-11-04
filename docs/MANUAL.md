@@ -214,8 +214,9 @@ Limite de **3 usuários ativos**. Não existem caixinhas de permissão: cada pes
 | Dar baixa (saída / pedidos) | ✅ | ✅ | ✅ |
 | Transferir entre estoques | ✅ | ✅ | ✅ |
 | Inventário (contar e corrigir quantidades) | ✅ | ✅ | ✅ |
-| Entrada | ✅ | ✅ | ❌ |
-| Cadastrar e editar produtos e kits, inativar | ✅ | ✅ | ❌ (só consulta) |
+| Entrada | ✅ | ✅ | ✅ |
+| Cadastrar e editar produtos e kits | ✅ | ✅ | ✅ |
+| Inativar produto | ✅ | ✅ | ❌ |
 | Estornar (autorizar correções) | ✅ | ✅ | ❌ |
 | Ver lançamentos de todos, relatórios, Log de atividades | ✅ | ✅ | ❌ (vê só o que ele lançou) |
 | Usuários, senhas dos estoques, lojas, configurações, excluir produto | ✅ | ❌ | ❌ |

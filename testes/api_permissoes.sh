@@ -28,15 +28,10 @@ espera(){
 R=$A/rest/v1
 if [ -n "$OP" ]; then
 OID=$(sub "$OP")
-espera "Funcionário NÃO cria produto (RPC)"                 "$OP" "Sem permissão"      -X POST $R/rpc/salvar_produto -d '{"p":{"nome":"Hack"}}'
-espera "Funcionário NÃO edita produto existente (RPC)"      "$OP" "Sem permissão"      -X POST $R/rpc/salvar_produto -d '{"p":{"id":1,"nome":"Hack","preco_venda":0}}'
-espera "Funcionário NÃO monta/desmonta kit"                 "$OP" "Sem permissão"      -X POST $R/rpc/salvar_kit -d '{"p_kit":1,"p_itens":[]}'
 espera "Funcionário NÃO inativa produto"                    "$OP" "Somente o CEO ou o gerente" -X POST $R/rpc/definir_produto_ativo -d '{"p_id":1,"p_ativo":false}'
 espera "Funcionário NÃO exclui produto"                     "$OP" "Somente o CEO"      -X POST $R/rpc/excluir_produto -d '{"p_id":1}'
 espera "Funcionário NÃO apaga produto por DELETE direto"    "$OP" "permission denied|42501" -X DELETE "$R/produtos?id=eq.1"
 espera "Funcionário NÃO altera preço por PATCH direto"      "$OP" "permission denied|42501" -X PATCH "$R/produtos?id=eq.1" -d '{"preco_venda":0.01}'
-espera "Funcionário NÃO importa planilha"                   "$OP" "Sem permissão"      -X POST $R/rpc/importar_produtos -d '{"p_linhas":[{"nome":"X"}]}'
-espera "Funcionário NÃO cria categoria"                     "$OP" "row-level security|42501" -X POST $R/categorias -d '{"nome":"Hack"}'
 espera "Funcionário NÃO cria/edita loja"                    "$OP" "Somente o CEO"      -X POST $R/rpc/salvar_loja -d '{"p":{"nome":"HACK"}}'
 espera "Funcionário NÃO altera loja por PATCH direto"       "$OP" "permission denied|42501" -X PATCH "$R/lojas?id=eq.1" -d '{"nome":"X"}'
 espera "Funcionário NÃO vira CEO"                           "$OP" "permission denied|42501" -X PATCH "$R/usuarios?email=eq.$FUNCIONARIO_EMAIL" -d '{"cargo":"ceo"}'
@@ -46,7 +41,6 @@ espera "Funcionário NÃO altera histórico (operacoes)"       "$OP" "permission
 espera "Funcionário NÃO cria transferência direto na tabela" "$OP" "permission denied|42501" -X POST $R/transferencias -d '{"loja_origem_id":1,"loja_destino_id":2}'
 espera "Funcionário NÃO chama função interna fn_movimentar" "$OP" "permission denied|42501|Could not find" -X POST $R/rpc/fn_movimentar -d '{"p_operacao":1,"p_produto":1,"p_loja":1,"p_qtd":100,"p_custo":0}'
 espera "Funcionário NÃO chama a entrada interna (sem regras)" "$OP" "permission denied|42501|Could not find" -X POST $R/rpc/registrar_entrada_interno -d '{"p":{}}'
-espera "Funcionário NÃO dá entrada"                         "$OP" "Sem permissão"      -X POST $R/rpc/registrar_entrada -d '{"p":{"loja_id":1,"itens":[{"produto_id":1,"quantidade":1}]}}'
 espera "Funcionário NÃO estorna"                            "$OP" "Sem permissão"      -X POST $R/rpc/estornar_operacao -d '{"p_operacao_id":1,"p_motivo":"x"}'
 espera "Funcionário NÃO lê lançamentos de outros"           "$OP" '^\[\] \[HTTP 200\]' "$R/movimentacoes?select=id&usuario_id=neq.$OID&limit=5"
 espera "Funcionário NÃO lê auditoria (lista vazia)"         "$OP" '^\[\] \[HTTP 200\]' "$R/auditoria?select=id&limit=5"
