@@ -19,6 +19,8 @@ interface Dados {
   ehCeo: boolean;
   /** o usuário logado pode fazer esta ação? (o mesmo que o banco confere) */
   pode: (p: Permissao) => boolean;
+  /** pode editar ESTE produto? (funcionário só mexe no que ele mesmo cadastrou) */
+  podeEditarProduto: (p: Produto) => boolean;
   /** lojas ativas */
   lojas: Loja[];
   /** estoque em que o usuário entrou (com a senha do estoque) */
@@ -42,7 +44,7 @@ const Contexto = createContext<Dados | null>(null);
 export const CAMPOS_LOJA = 'id, codigo, nome, cor, ordem, ativa';
 
 const CAMPOS_PRODUTO =
-  'id, sku, ean, nome, categoria_id, marca_id, unidade, preco_custo, preco_venda, custo_medio, foto_path, observacoes, ativo, ml_item_id, codigo_fornecedor, ncm, cest, origem_fiscal, eh_kit, criado_em, atualizado_em, estoques:produto_loja(loja_id, saldo, estoque_minimo), kit:kit_itens!kit_itens_kit_id_fkey(produto_id, quantidade)';
+  'id, sku, ean, nome, categoria_id, marca_id, unidade, preco_custo, preco_venda, custo_medio, foto_path, observacoes, ativo, ml_item_id, codigo_fornecedor, ncm, cest, origem_fiscal, eh_kit, criado_em, criado_por, atualizado_em, estoques:produto_loja(loja_id, saldo, estoque_minimo), kit:kit_itens!kit_itens_kit_id_fkey(produto_id, quantidade)';
 
 // Kit não tem estoque próprio: o "saldo" dele é quantos kits dá para montar
 // em cada loja com os componentes que existem (o que acabar primeiro manda).
@@ -178,6 +180,7 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
       ehAdmin,
       ehCeo,
       pode,
+      podeEditarProduto: (p: Produto) => pode('produtos') && (usuario?.cargo !== 'funcionario' || p.criado_por === usuario.id),
       lojas,
       lojaAtual: lojas.find((l) => l.id === usuario?.loja_atual),
       outrasLojas: lojas.filter((l) => l.id !== usuario?.loja_atual),

@@ -14,11 +14,11 @@ import { CampoQuantidade } from './ui';
 // Composição do kit: quais produtos (e quantos de cada) formam 1 kit.
 // Dar baixa em 1 kit tira cada componente do estoque.
 export function KitComposicao({ produto }: { produto: Produto }) {
-  const { produtoPorId, lojas, pode, recarregar } = useDados();
+  const { produtoPorId, lojas, podeEditarProduto, recarregar } = useDados();
   const [itens, setItens] = useState<(Omit<KitItem, 'quantidade'> & { quantidade: number | '' })[]>(produto.kit ?? []);
   const [editando, setEditando] = useState(false);
   const [ocupado, setOcupado] = useState(false);
-  const podeEditar = pode('produtos');
+  const podeEditar = podeEditarProduto(produto);
   // produto com estoque ou histórico próprio não vira kit
   const temEstoqueProprio = !produto.eh_kit && produto.estoques.some((e) => e.saldo !== 0);
 

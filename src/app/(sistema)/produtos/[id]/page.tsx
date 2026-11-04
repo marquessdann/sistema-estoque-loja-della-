@@ -18,7 +18,7 @@ import type { MovimentacaoLinha } from '@/lib/tipos';
 
 export default function DetalheProduto() {
   const { id } = useParams<{ id: string }>();
-  const { produtoPorId, lojas, versao, recarregar, pode, ehAdmin, ehCeo } = useDados();
+  const { produtoPorId, lojas, versao, recarregar, pode, podeEditarProduto, ehAdmin, ehCeo } = useDados();
   const router = useRouter();
   const produto = produtoPorId(Number(id));
   const [alteracoes, setAlteracoes] = useState<
@@ -155,7 +155,7 @@ export default function DetalheProduto() {
         )}
       </div>
 
-      <ProdutoForm key={produto.id} produto={produto} somenteLeitura={!pode('produtos')} />
+      <ProdutoForm key={produto.id} produto={produto} somenteLeitura={!podeEditarProduto(produto)} />
 
       {/* Histórico do produto */}
       <div className="cartao p-0 sm:p-0">

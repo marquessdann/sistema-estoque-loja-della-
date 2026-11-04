@@ -117,6 +117,10 @@ Rode também o [`supabase/14_funcionario_inventario.sql`](../supabase/14_funcion
 
 Rode também o [`supabase/15_funcionario_produtos_entrada.sql`](../supabase/15_funcionario_produtos_entrada.sql) no **SQL Editor**, depois do 14. Não apaga nada e pode rodar de novo.
 
+### 1.4g — Arquivo 16 (funcionário só cadastra produto novo)
+
+Rode também o [`supabase/16_funcionario_so_novos.sql`](../supabase/16_funcionario_so_novos.sql) no **SQL Editor**, depois do 15. Não apaga nada e pode rodar de novo.
+
 ### 1.5 — Copiar as chaves de acesso
 
 1. Clique em **Project Settings** (engrenagem) e depois em **API Keys** (ou **API**).

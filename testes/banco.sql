@@ -1,6 +1,6 @@
 -- =====================================================================
 -- Bateria de testes automáticos das regras do banco (estoque e permissões).
--- Roda num banco de TESTE já com 01 + 03 + 04 + 05 + 07 + 08 + 12 + 13 + 14 + 15 + 02 aplicados (nunca em produção).
+-- Roda num banco de TESTE já com 01 + 03 + 04 + 05 + 07 + 08 + 12 + 13 + 14 + 15 + 16 + 02 aplicados (nunca em produção).
 -- Usuários de teste: admin = CEO, op1 = GERENTE, op2 = FUNCIONÁRIO.
 -- Cada linha "OK"/"FALHOU" mostra o resultado; ao final, um resumo.
 -- =====================================================================
@@ -455,6 +455,19 @@ select pg_temp.como('admin@teste.com');
 select excluir_lote_full(:lote);
 select pg_temp.checar('CEO exclui lote criado por engano (e os avisos vistos dele)',
   not exists (select 1 from lotes_full) and (select count(*) from avisos_full_vistos where lote_id = :lote) = 0);
+
+-- ===================== FUNCIONÁRIO: SÓ CADASTRA PRODUTO NOVO =====================
+select pg_temp.como('op2@teste.com');
+select salvar_produto('{"nome":"Produto do Funcionario","sku":"FUNC-NOVO"}') as fnovo \gset
+select pg_temp.checar('Funcionário cadastra produto novo', exists (select 1 from produtos where id = :fnovo));
+select salvar_produto(format('{"id":%s,"nome":"Produto do Funcionario corrigido","sku":"FUNC-NOVO"}', :fnovo)::jsonb);
+select pg_temp.checar('Funcionário corrige o produto que ele acabou de criar', (select nome from produtos where id = :fnovo) = 'Produto do Funcionario corrigido');
+select pg_temp.espera_erro('Funcionário NÃO edita produto que já existia',
+  format($$select salvar_produto('{"id":%s,"nome":"Hack"}')$$, pg_temp.pid('PIN-FINA')), 'não editar os que já existem');
+select pg_temp.espera_erro('Funcionário NÃO altera a composição de um kit que já existia',
+  format($$select salvar_kit(%s, '[]')$$, :kit), 'não editar os que já existem');
+select pg_temp.espera_erro('Funcionário NÃO altera produto pela importação de planilha',
+  $$select importar_produtos('[{"sku":"PIN-FINA","nome":"Hack"}]')$$, 'não editar os que já existem');
 
 -- ===================== INTEGRIDADE FINAL =====================
 reset role;

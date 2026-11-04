@@ -48,6 +48,7 @@ export interface Estoque {
 
 export interface Produto {
   id: number;
+  criado_por?: string | null;
   sku: string;
   ean: string | null;
   nome: string;
