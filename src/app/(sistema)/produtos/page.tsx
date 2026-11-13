@@ -13,10 +13,11 @@ const POR_PAGINA = 40;
 type Ordem = 'nome' | 'menor' | 'maior' | 'recentes' | 'sku';
 
 export default function ListaProdutos() {
-  const { produtos, lojas, categorias, categoriaNome, marcaNome, pode } = useDados();
+  const { produtos, lojas, categorias, marcas, categoriaNome, marcaNome, pode } = useDados();
   const [termo, setTermo] = useState('');
   const [situacao, setSituacao] = useState<'ativos' | 'inativos' | 'todos'>('ativos');
   const [categoria, setCategoria] = useState<number | ''>('');
+  const [marca, setMarca] = useState<number | ''>('');
   const [filtroEstoque, setFiltroEstoque] = useState('');
   const [ordem, setOrdem] = useState<Ordem>('nome');
   const [limite, setLimite] = useState(POR_PAGINA);
@@ -26,7 +27,7 @@ export default function ListaProdutos() {
     if (b) setFiltroEstoque(`baixo-${b}`);
   }, []);
   // ao mudar filtros, volta para a primeira "página"
-  useEffect(() => setLimite(POR_PAGINA), [termo, situacao, categoria, filtroEstoque, ordem]);
+  useEffect(() => setLimite(POR_PAGINA), [termo, situacao, categoria, marca, filtroEstoque, ordem]);
 
   const ids = lojas.map((l) => l.id);
   const filtrados = useMemo(() => {
@@ -34,6 +35,7 @@ export default function ListaProdutos() {
     if (situacao === 'ativos') l = l.filter((p) => p.ativo);
     if (situacao === 'inativos') l = l.filter((p) => !p.ativo);
     if (categoria) l = l.filter((p) => p.categoria_id === categoria);
+    if (marca) l = l.filter((p) => p.marca_id === marca);
     if (filtroEstoque.startsWith('baixo-')) {
       const lojaId = Number(filtroEstoque.split('-')[1]);
       l = l.filter((p) => abaixoDoMinimo(p, lojaId));
@@ -53,7 +55,17 @@ export default function ListaProdutos() {
     };
     return [...l].sort(ordenar[ordem]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [produtos, termo, situacao, categoria, filtroEstoque, ordem, lojas]);
+  }, [produtos, termo, situacao, categoria, marca, filtroEstoque, ordem, lojas]);
+
+  // só as marcas que têm produto na situação escolhida (ex.: marca com tudo inativo não aparece em "Somente ativos")
+  const marcasVisiveis = useMemo(() => {
+    const usadas = new Set(
+      produtos
+        .filter((p) => (situacao === 'ativos' ? p.ativo : situacao === 'inativos' ? !p.ativo : true))
+        .map((p) => p.marca_id),
+    );
+    return marcas.filter((m) => usadas.has(m.id) || m.id === marca);
+  }, [produtos, marcas, situacao, marca]);
 
   const visiveis = filtrados.slice(0, limite);
 
@@ -88,7 +100,7 @@ export default function ListaProdutos() {
             autoFocus
           />
         </div>
-        <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+        <div className="grid grid-cols-2 gap-2 md:grid-cols-3 lg:grid-cols-5">
           <select className="campo" value={situacao} onChange={(e) => setSituacao(e.target.value as typeof situacao)} aria-label="Situação">
             <option value="ativos">Somente ativos</option>
             <option value="inativos">Somente inativos</option>
@@ -99,6 +111,14 @@ export default function ListaProdutos() {
             {categorias.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.nome}
+              </option>
+            ))}
+          </select>
+          <select className="campo" value={marca} onChange={(e) => setMarca(e.target.value ? Number(e.target.value) : '')} aria-label="Marca">
+            <option value="">Todas as marcas</option>
+            {marcasVisiveis.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.nome}
               </option>
             ))}
           </select>
